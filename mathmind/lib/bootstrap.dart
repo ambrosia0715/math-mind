@@ -23,11 +23,23 @@ Future<void> bootstrap() async {
 }
 
 Future<void> _loadEnvironment() async {
+  const primary = '.env';
+  const fallback = '.env.example';
+
+  Future<void> load(String file) async {
+    await dotenv.load(fileName: file);
+    log('Loaded environment file: $file');
+  }
+
   try {
-    await dotenv.load(fileName: '.env');
+    await load(primary);
   } catch (error) {
     if (error is FileSystemException || error is FileNotFoundError) {
-      await dotenv.load(fileName: '.env.example');
+      log(
+        'Primary environment file missing; falling back to $fallback',
+        error: error,
+      );
+      await load(fallback);
     } else {
       rethrow;
     }
@@ -38,6 +50,9 @@ Future<void> _initializeFirebase(AppEnv env) async {
   try {
     final options = env.firebaseOptions;
     if (options != null) {
+      log(
+        'Initializing Firebase with project ${options.projectId} and appId ${options.appId}',
+      );
       await Firebase.initializeApp(options: options);
     } else {
       await Firebase.initializeApp();

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../auth/application/auth_provider.dart';
-import '../../subscription/application/subscription_provider.dart';
 import '../../dashboard/presentation/dashboard_shell.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -23,11 +22,11 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _bootstrap() async {
     final auth = context.read<AuthProvider>();
-    final subscription = context.read<SubscriptionProvider>();
 
     try {
       await auth.ensureSignedIn();
-      await subscription.loadOfferings();
+      // TODO: Re-enable subscription initialization once RevenueCat integration is ready.
+      // await context.read<SubscriptionProvider>().loadOfferings();
     } catch (_) {
       // Continue to dashboard even if network calls fail.
     }

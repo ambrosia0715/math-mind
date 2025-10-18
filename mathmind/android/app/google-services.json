@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "766356917991",
+    "project_id": "math-mind-1556a",
+    "storage_bucket": "math-mind-1556a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:766356917991:android:b026627daa74f804891c42",
+        "android_client_info": {
+          "package_name": "com.ambro.mathmind"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPlcv-L7sNhaPTZ80xMuWflsXz7TOzY-g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

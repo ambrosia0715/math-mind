@@ -25,8 +25,12 @@ Future<void> bootstrap() async {
 Future<void> _loadEnvironment() async {
   try {
     await dotenv.load(fileName: '.env');
-  } on FileSystemException {
-    await dotenv.load(fileName: '.env.example');
+  } catch (error) {
+    if (error is FileSystemException || error is FileNotFoundError) {
+      await dotenv.load(fileName: '.env.example');
+    } else {
+      rethrow;
+    }
   }
 }
 

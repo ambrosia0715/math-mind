@@ -38,9 +38,7 @@ class SubscriptionService {
 
   Future<Offerings?> fetchOfferings() async {
     if (!_hasApiKey) {
-      debugPrint(
-        'RevenueCat API key missing; returning null offerings.',
-      );
+      debugPrint('RevenueCat API key missing; returning null offerings.');
       return null;
     }
 

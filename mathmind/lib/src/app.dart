@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/config/app_env.dart';
@@ -7,12 +8,14 @@ import 'core/services/lesson_history_service.dart';
 import 'core/services/speech_service.dart';
 import 'core/services/subscription_service.dart';
 import 'features/auth/application/auth_provider.dart';
+import 'features/auth/presentation/auth_screen.dart';
 import 'features/dashboard/presentation/dashboard_shell.dart';
 import 'features/lessons/application/lesson_session_provider.dart';
 import 'features/retention/application/retention_provider.dart';
 import 'features/retention/services/retention_service.dart';
 import 'features/splash/presentation/splash_screen.dart';
 import 'features/subscription/application/subscription_provider.dart';
+import 'l10n/app_localizations.dart';
 import 'navigation/app_router.dart';
 
 class MathMindApp extends StatelessWidget {
@@ -56,10 +59,21 @@ class MathMindApp extends StatelessWidget {
       child: MaterialApp(
         title: 'MathMind',
         debugShowCheckedModeBanner: false,
+        locale: const Locale('ko'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         theme: _buildTheme(),
         initialRoute: SplashScreen.routeName,
         onGenerateRoute: AppRouter.onGenerateRoute,
-        routes: {DashboardShell.routeName: (_) => const DashboardShell()},
+        routes: {
+          DashboardShell.routeName: (_) => const DashboardShell(),
+          AuthScreen.routeName: (_) => const AuthScreen(),
+        },
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../features/auth/presentation/auth_screen.dart';
 import '../features/dashboard/presentation/dashboard_shell.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/lessons/presentation/lesson_screen.dart';
@@ -17,6 +18,11 @@ class AppRouter {
       case DashboardShell.routeName:
         return MaterialPageRoute<void>(
           builder: (_) => const DashboardShell(),
+          settings: settings,
+        );
+      case AuthScreen.routeName:
+        return MaterialPageRoute<void>(
+          builder: (_) => const AuthScreen(),
           settings: settings,
         );
       case LessonScreen.routeName:

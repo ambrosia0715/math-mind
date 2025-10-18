@@ -1,0 +1,71 @@
+<svg width="360" height="64" viewBox="0 0 360 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mmGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5A6CEA" />
+      <stop offset="100%" stop-color="#48D2FE" />
+    </linearGradient>
+    <linearGradient id="mmAccent" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#FF8F70" />
+      <stop offset="100%" stop-color="#FFD36F" />
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(0 10)">
+    <rect x="0" y="0" width="56" height="44" rx="14" fill="url(#mmGradient)" />
+    <path
+      d="M18 32c0-4.97 4.03-9 9-9h4.5c4.97 0 9-4.03 9-9v-1.2c0-3.48-2.82-6.3-6.3-6.3H24c-8.28 0-15 6.72-15 15v3.3c0 8.28 6.72 15 15 15h10.8c2.37 0 4.2-1.83 4.2-4.2 0-2.37-1.83-4.2-4.2-4.2H27z"
+      fill="#FFFFFF"
+      opacity="0.95"
+    />
+    <path
+      d="M20 34h16.5c1.24 0 2.25 1.01 2.25 2.25S37.74 38.5 36.5 38.5H20c-1.24 0-2.25-1.01-2.25-2.25S18.76 34 20 34z"
+      fill="url(#mmAccent)"
+    />
+    <circle cx="38.5" cy="11.5" r="4" fill="#FFFFFF" opacity="0.9" />
+  </g>
+
+  <g fill="#1B1B33" transform="translate(84 12)">
+    <!-- M -->
+    <g transform="translate(0 0)">
+      <path d="M0 40V0h6l6 14L18 0h6v40h-6V16l-6 14-6-14v24z" />
+    </g>
+    <!-- A -->
+    <g transform="translate(30 0)">
+      <polygon points="0,40 10,0 22,0 32,40 24,40 20.8,29 11.2,29 8,40" />
+      <rect x="10" y="18" width="12" height="5" />
+    </g>
+    <!-- T -->
+    <g transform="translate(62 0)">
+      <rect x="0" y="0" width="30" height="6" />
+      <rect x="12" y="6" width="6" height="34" />
+    </g>
+    <!-- H -->
+    <g transform="translate(94 0)">
+      <rect x="0" y="0" width="6" height="40" />
+      <rect x="18" y="0" width="6" height="40" />
+      <rect x="6" y="17" width="12" height="6" />
+    </g>
+    <!-- Hyphen -->
+    <g transform="translate(124 0)">
+      <rect x="0" y="18" width="14" height="4" rx="2" />
+    </g>
+    <!-- M -->
+    <g transform="translate(144 0)">
+      <path d="M0 40V0h6l6 14L18 0h6v40h-6V16l-6 14-6-14v24z" />
+    </g>
+    <!-- I -->
+    <g transform="translate(174 0)">
+      <rect x="3" y="0" width="6" height="40" />
+      <rect x="0" y="0" width="12" height="6" />
+      <rect x="0" y="34" width="12" height="6" />
+    </g>
+    <!-- N -->
+    <g transform="translate(194 0)">
+      <path d="M0 40V0h6l14 24V0h6v40h-6L6 16v24z" />
+    </g>
+    <!-- D -->
+    <g transform="translate(224 0)">
+      <path d="M0 40V0h12c10 0 16 6.6 16 20s-6 20-16 20H0zm6-6h6c6 0 10-4 10-14s-4-14-10-14H6z" />
+    </g>
+  </g>
+</svg>

@@ -9,6 +9,8 @@ import '../../lessons/presentation/lesson_screen.dart';
 import '../../retention/application/retention_provider.dart';
 import '../../subscription/application/subscription_provider.dart';
 import '../../subscription/domain/subscription_plan.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../widgets/mathmind_logo.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -21,7 +23,9 @@ class HomeScreen extends StatelessWidget {
     final retention = context.watch<RetentionProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('MathMind')),
+      appBar: AppBar(
+        title: const MathMindLogo(height: 28),
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await context.read<SubscriptionProvider>().loadOfferings();
@@ -58,6 +62,7 @@ class _LearningOverview extends StatelessWidget {
     final theme = Theme.of(context);
     final tierLabel = subscription.activeTier.name.toUpperCase();
     final remaining = subscription.remainingDailyQuestions;
+    final l10n = context.l10n;
 
     return Card(
       child: Padding(
@@ -65,14 +70,17 @@ class _LearningOverview extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Welcome back!', style: theme.textTheme.titleLarge),
+            Text(l10n.homeWelcomeBack, style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
-            Text('Current plan: $tierLabel', style: theme.textTheme.bodyMedium),
+            Text(
+              l10n.homeCurrentPlan(tierLabel),
+              style: theme.textTheme.bodyMedium,
+            ),
             if (subscription.activeTier == SubscriptionTier.free)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Free plan includes 5 AI questions per day with text explanations.',
+                  l10n.homeFreePlanDescription,
                   style: theme.textTheme.bodySmall,
                 ),
               ),
@@ -81,15 +89,15 @@ class _LearningOverview extends StatelessWidget {
               children: [
                 _PillStatistic(
                   icon: Icons.chat_bubble_outline,
-                  label: 'Questions left',
+                  label: l10n.homeQuestionsLeft,
                   value: subscription.activeTier == SubscriptionTier.free
                       ? '${remaining ?? 0}'
-                      : 'Unlimited',
+                      : l10n.generalUnlimited,
                 ),
                 const SizedBox(width: 12),
                 _PillStatistic(
                   icon: Icons.timer_outlined,
-                  label: 'Retention due',
+                  label: l10n.homeRetentionDue,
                   value: retentionCount.toString(),
                 ),
               ],
@@ -155,6 +163,7 @@ class _ActionButtons extends StatelessWidget {
     final sessionProvider = context.watch<LessonSessionProvider>();
     final theme = Theme.of(context);
     final canAsk = subscription.canAskNewQuestion();
+    final l10n = context.l10n;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -170,13 +179,13 @@ class _ActionButtons extends StatelessWidget {
                 }
               : null,
           icon: const Icon(Icons.auto_stories),
-          label: const Text('Start adaptive lesson'),
+          label: Text(l10n.homeStartAdaptiveLesson),
         ),
         if (!canAsk)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Daily question limit reached. Upgrade to continue learning.',
+              l10n.homeDailyLimitReachedUpgrade,
               style: theme.textTheme.bodySmall,
             ),
           ),
@@ -187,13 +196,11 @@ class _ActionButtons extends StatelessWidget {
                 ? null
                 : () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Visual explanations coming soon.'),
-                      ),
+                      SnackBar(content: Text(l10n.homeVisualExplanationSoon)),
                     );
                   },
             icon: const Icon(Icons.image_outlined),
-            label: const Text('Open visual explanation'),
+            label: Text(l10n.homeOpenVisualExplanation),
           )
         else
           TextButton(
@@ -204,7 +211,7 @@ class _ActionButtons extends StatelessWidget {
               );
             },
             child: Text(
-              'Upgrade to unlock visual explanations',
+              l10n.homeUpgradeForVisual,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.primary,
               ),
@@ -223,6 +230,7 @@ class _UpgradeSheet extends StatelessWidget {
     final subscription = context.watch<SubscriptionProvider>();
     final offerings = subscription.offerings;
     final packages = offerings?.current?.availablePackages ?? [];
+    final l10n = context.l10n;
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -231,17 +239,17 @@ class _UpgradeSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Upgrade your learning',
+            l10n.homeUpgradeTitle,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
           Text(
-            'Premium adds image explanations, retention reviews, and parent reports.',
+            l10n.homeUpgradeBody,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
           if (packages.isEmpty)
-            const Text('Plans are loading or not configured yet.')
+            Text(l10n.homePlansLoading)
           else
             for (final package in packages)
               ListTile(
@@ -274,6 +282,7 @@ class _LessonHistoryPanel extends StatelessWidget {
     }
 
     final historyService = context.read<LessonHistoryService>();
+    final l10n = context.l10n;
 
     return StreamBuilder<List<LessonHistory>>(
       stream: historyService.watchByUser(auth.currentUser!.id),
@@ -284,16 +293,14 @@ class _LessonHistoryPanel extends StatelessWidget {
 
         final lessons = snapshot.data ?? [];
         if (lessons.isEmpty) {
-          return const Text(
-            'No lessons yet. Start learning to build your history!',
-          );
+          return Text(l10n.homeNoLessonsYet);
         }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Recent lessons',
+              l10n.homeRecentLessons,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
@@ -302,7 +309,7 @@ class _LessonHistoryPanel extends StatelessWidget {
                 child: ListTile(
                   leading: const Icon(Icons.bookmark_added_outlined),
                   title: Text(lesson.topic),
-                  subtitle: Text(_buildLessonSubtitle(lesson)),
+                  subtitle: Text(_buildLessonSubtitle(context, lesson)),
                 ),
               ),
           ],
@@ -311,11 +318,12 @@ class _LessonHistoryPanel extends StatelessWidget {
     );
   }
 
-  String _buildLessonSubtitle(LessonHistory lesson) {
+  String _buildLessonSubtitle(BuildContext context, LessonHistory lesson) {
+    final l10n = context.l10n;
     final score = lesson.initialScore != null ? '${lesson.initialScore}' : '-';
     final due = lesson.reviewDue != null
         ? lesson.reviewDue!.toLocal().toString().split(' ').first
-        : 'completed';
-    return 'Score: $score • Review: $due';
+        : l10n.homeLessonReviewCompleted;
+    return l10n.homeLessonSummary(score, due);
   }
 }

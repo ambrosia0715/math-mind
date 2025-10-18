@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../auth/application/auth_provider.dart';
 import '../../subscription/application/subscription_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -11,17 +12,22 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final subscription = context.watch<SubscriptionProvider>();
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile & settings')),
+      appBar: AppBar(title: Text(l10n.profileAppBarTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Card(
             child: ListTile(
               leading: const CircleAvatar(child: Icon(Icons.person)),
-              title: Text(auth.currentUser?.displayName ?? 'Learner'),
-              subtitle: Text(auth.currentUser?.email ?? 'Anonymous account'),
+              title: Text(
+                auth.currentUser?.displayName ?? l10n.generalLearnerFallback,
+              ),
+              subtitle: Text(
+                auth.currentUser?.email ?? l10n.profileAnonymousAccount,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -32,12 +38,14 @@ class ProfileScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Subscription',
+                    l10n.profileSubscriptionSection,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Current plan: ${subscription.activeTier.name.toUpperCase()}',
+                    l10n.profileCurrentPlan(
+                      subscription.activeTier.name.toUpperCase(),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
@@ -49,15 +57,13 @@ class ProfileScreen extends StatelessWidget {
                               return;
                             }
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Purchases restored (if available).',
-                                ),
+                              SnackBar(
+                                content: Text(l10n.profileRestoreResult),
                               ),
                             );
                           },
                     icon: const Icon(Icons.restore),
-                    label: const Text('Restore purchases'),
+                    label: Text(l10n.profileRestorePurchases),
                   ),
                 ],
               ),
@@ -71,14 +77,11 @@ class ProfileScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Parent report (Premium)',
+                    l10n.profileParentReportTitle,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Premium will unlock a weekly report summarising learning time, strengths,'
-                    ' and suggested follow-up activities.',
-                  ),
+                  Text(l10n.profileParentReportBody),
                 ],
               ),
             ),
@@ -90,11 +93,11 @@ class ProfileScreen extends StatelessWidget {
               if (context.mounted) {
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(const SnackBar(content: Text('Signed out.')));
+                ).showSnackBar(SnackBar(content: Text(l10n.profileSignedOut)));
               }
             },
             icon: const Icon(Icons.logout),
-            label: const Text('Sign out'),
+            label: Text(l10n.profileSignOut),
           ),
         ],
       ),

@@ -23,7 +23,7 @@ class SpeechService {
   }
 
   Future<void> speak(String text) async {
-    await _tts.setLanguage('en-US');
+    await _tts.setLanguage('ko-KR');
     await _tts.setSpeechRate(0.9);
     await _tts.speak(text);
   }
@@ -48,6 +48,7 @@ class SpeechService {
         }
       },
       pauseFor: const Duration(seconds: 4),
+      localeId: 'ko_KR',
       listenOptions: stt.SpeechListenOptions(
         partialResults: true,
         listenMode: ListenMode.dictation,

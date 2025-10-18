@@ -6,6 +6,7 @@ MathMind is an AI-guided math tutor built with Flutter. The app personalises exp
 
 - Adaptive lessons: GPT-4o powered explanations tuned to learner grade and name.
 - Understanding checks: learners re-explain concepts and receive instant scoring & feedback.
+- Email & Google authentication: learners can register with ID/name/email or sign in via Google.
 - Retention loop: two-day review queue with Firestore-backed history tracking.
 - Concept detection: paste a problem statement to auto-tag the relevant concept.
 - Speech support: dictation for learner explanations + text-to-speech playback.
@@ -64,9 +65,10 @@ flutter run
 ### First-time setup checklist
 
 1. Configure Firebase for each platform (Android/iOS/web) and include the generated config files.
-2. Ensure Developer Mode is enabled on Windows for symlink support when targeting desktop.
-3. If RevenueCat is not yet configured, leave `REVENUECAT_KEY` blank—the subscription UI will stay in a mock state.
-4. Test OpenAI connectivity by starting a lesson; fallback explanations are generated when the API key is missing.
+2. In the Firebase console, enable the *Email/Password* and *Google* authentication providers. For web builds, add your host to the authorized domains and configure the Google OAuth client.
+3. Ensure Developer Mode is enabled on Windows for symlink support when targeting desktop.
+4. If RevenueCat is not yet configured, leave `REVENUECAT_KEY` blank - the subscription UI will stay in a mock state.
+5. Test OpenAI connectivity by starting a lesson; fallback explanations are generated when the API key is missing.
 
 ## Next Steps
 

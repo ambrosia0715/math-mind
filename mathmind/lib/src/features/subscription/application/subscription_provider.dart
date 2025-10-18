@@ -8,6 +8,8 @@ class SubscriptionProvider extends ChangeNotifier {
   SubscriptionProvider({required SubscriptionService service})
     : _service = service;
 
+  static const int _freeDailyLimit = 100;
+
   final SubscriptionService _service;
 
   SubscriptionTier _activeTier = SubscriptionTier.free;
@@ -23,7 +25,9 @@ class SubscriptionProvider extends ChangeNotifier {
       _activeTier == SubscriptionTier.basic ||
       _activeTier == SubscriptionTier.premium;
   int? get remainingDailyQuestions => _activeTier == SubscriptionTier.free
-      ? (5 - _questionsAskedToday).clamp(0, 5).toInt()
+      ? (_freeDailyLimit - _questionsAskedToday)
+            .clamp(0, _freeDailyLimit)
+            .toInt()
       : null;
 
   Future<void> loadOfferings() async {

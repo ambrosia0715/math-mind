@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../lessons/domain/lesson_history.dart';
 import '../application/retention_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class RetentionScreen extends StatelessWidget {
   const RetentionScreen({super.key});
@@ -13,15 +14,16 @@ class RetentionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final retention = context.watch<RetentionProvider>();
     final lessons = retention.dueLessons;
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Retention review')),
+      appBar: AppBar(title: Text(l10n.retentionAppBarTitle)),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: retention.isLoading
             ? const Center(child: CircularProgressIndicator())
             : lessons.isEmpty
-            ? const Center(child: Text('No reviews due today. Keep learning!'))
+            ? Center(child: Text(l10n.retentionEmptyMessage))
             : ListView.separated(
                 itemBuilder: (context, index) {
                   final lesson = lessons[index];
@@ -64,6 +66,9 @@ class _RetentionTaskCardState extends State<_RetentionTaskCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final learnedDate =
+        widget.lesson.learnedAt?.toLocal().toString().split(' ').first ?? '-';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -75,21 +80,19 @@ class _RetentionTaskCardState extends State<_RetentionTaskCard> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            Text(
-              'Learned: ${widget.lesson.learnedAt?.toLocal().toString().split(' ').first ?? '-'}',
-            ),
+            Text(l10n.retentionLearnedDate(learnedDate)),
             if (widget.lesson.detectedConcept != null &&
                 widget.lesson.detectedConcept!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text('Concept: ${widget.lesson.detectedConcept}'),
+                child: Text(
+                  l10n.retentionConcept(widget.lesson.detectedConcept!),
+                ),
               ),
             const SizedBox(height: 12),
             TextField(
               controller: _controller,
-              decoration: const InputDecoration(
-                labelText: 'Retention score (0 - 100)',
-              ),
+              decoration: InputDecoration(labelText: l10n.retentionScoreLabel),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
@@ -102,9 +105,7 @@ class _RetentionTaskCardState extends State<_RetentionTaskCard> {
                         final raw = int.tryParse(_controller.text);
                         if (raw == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Enter a score between 0 and 100.'),
-                            ),
+                            SnackBar(content: Text(l10n.retentionScoreError)),
                           );
                           return;
                         }
@@ -119,7 +120,9 @@ class _RetentionTaskCardState extends State<_RetentionTaskCard> {
                           setState(() => _submitting = false);
                         }
                       },
-                child: Text(_submitting ? 'Saving...' : 'Save retention score'),
+                child: Text(
+                  _submitting ? l10n.retentionSaving : l10n.retentionSaveButton,
+                ),
               ),
             ),
           ],

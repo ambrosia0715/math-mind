@@ -31,21 +31,29 @@ class LessonSessionProvider extends ChangeNotifier {
 
   LessonStage _stage = LessonStage.idle;
   String? _topic;
-  int _targetGrade = 1;
+  int _targetAge = 6;
   String? _conceptExplanation;
   String? _aiFeedback;
   int? _initialScore;
   String? _detectedConcept;
   String? _errorMessage;
+  List<ConceptBreakdown> _conceptBreakdown = [];
+  ConceptBreakdown? _selectedConcept;
+  bool _isAnalyzingConcepts = false;
+  String? _pendingConceptProblem;
 
   LessonStage get stage => _stage;
   String? get topic => _topic;
-  int get targetGrade => _targetGrade;
+  int get targetAge => _targetAge;
   String? get conceptExplanation => _conceptExplanation;
   String? get aiFeedback => _aiFeedback;
   int? get initialScore => _initialScore;
   String? get detectedConcept => _detectedConcept;
   String? get errorMessage => _errorMessage;
+  bool get isAnalyzingConcepts => _isAnalyzingConcepts;
+  ConceptBreakdown? get selectedConcept => _selectedConcept;
+  List<ConceptBreakdown> get conceptBreakdown =>
+      List.unmodifiable(_conceptBreakdown);
 
   bool get canStart =>
       _stage == LessonStage.idle || _stage == LessonStage.completed;
@@ -53,33 +61,36 @@ class LessonSessionProvider extends ChangeNotifier {
 
   Future<void> startLesson({
     required String topic,
-    required int grade,
+    required int age,
     required String learnerName,
   }) async {
     if (!canStart) return;
 
     _stage = LessonStage.generatingContent;
     _topic = topic;
-    _targetGrade = grade;
+    _targetAge = age;
     _conceptExplanation = null;
     _initialScore = null;
     _aiFeedback = null;
     _detectedConcept = null;
     _errorMessage = null;
+    _conceptBreakdown = [];
+    _selectedConcept = null;
+    _isAnalyzingConcepts = false;
+    _pendingConceptProblem = null;
     notifyListeners();
 
     try {
       final explanation = await _aiContentService.explainConcept(
         topic: topic,
-        grade: grade,
+        age: age,
         learnerName: learnerName,
       );
       _conceptExplanation = explanation;
       _stage = LessonStage.ready;
     } catch (error, stackTrace) {
       debugPrint('Lesson generation failed: $error\n$stackTrace');
-      _errorMessage =
-          'Something went wrong while generating the content. Please try again.';
+      _errorMessage = '학습 내용을 생성하는 중 문제가 발생했어요. 다시 시도해 주세요.';
       _stage = LessonStage.error;
     }
 
@@ -88,15 +99,40 @@ class LessonSessionProvider extends ChangeNotifier {
 
   Future<void> analyzeProblem(String userProblem) async {
     if (_topic == null) return;
-    try {
-      final concept = await _aiContentService.detectConceptFromProblem(
-        userProblem,
-      );
-      _detectedConcept = concept;
-    } catch (error) {
-      debugPrint('Problem analysis failed: $error');
+
+    final trimmed = userProblem.trim();
+    if (trimmed.isEmpty) {
+      clearConceptSuggestions();
+      return;
     }
+
+    _pendingConceptProblem = trimmed;
+    _conceptBreakdown = [];
+    _selectedConcept = null;
+    _detectedConcept = null;
+    _isAnalyzingConcepts = true;
     notifyListeners();
+
+    try {
+      final concepts = await _aiContentService.analyzeProblemConcepts(
+        problem: trimmed,
+        age: _targetAge,
+      );
+      if (_pendingConceptProblem != trimmed) {
+        return;
+      }
+      _conceptBreakdown = concepts;
+    } catch (error, stackTrace) {
+      if (_pendingConceptProblem == trimmed) {
+        debugPrint('Problem analysis failed: $error\n$stackTrace');
+        _conceptBreakdown = [];
+      }
+    } finally {
+      if (_pendingConceptProblem == trimmed) {
+        _isAnalyzingConcepts = false;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> evaluateUnderstanding(String learnerExplanation) async {
@@ -118,8 +154,7 @@ class LessonSessionProvider extends ChangeNotifier {
       _stage = LessonStage.awaitingEvaluation;
     } catch (error, stackTrace) {
       debugPrint('Evaluation failed: $error\n$stackTrace');
-      _errorMessage =
-          'We could not evaluate the explanation. Please try again in a moment.';
+      _errorMessage = '설명을 평가할 수 없었어요. 잠시 후 다시 시도해 주세요.';
       _stage = LessonStage.error;
     }
 
@@ -147,7 +182,7 @@ class LessonSessionProvider extends ChangeNotifier {
       _stage = LessonStage.completed;
     } catch (error, stackTrace) {
       debugPrint('Failed to save lesson history: $error\n$stackTrace');
-      _errorMessage = 'We were unable to save your learning history.';
+      _errorMessage = '학습 기록을 저장하지 못했어요.';
       _stage = LessonStage.error;
     }
 
@@ -157,6 +192,7 @@ class LessonSessionProvider extends ChangeNotifier {
   void reset() {
     _stage = LessonStage.idle;
     _topic = null;
+    clearConceptSuggestions(notifyListenersNow: false);
     _conceptExplanation = null;
     _aiFeedback = null;
     _initialScore = null;
@@ -165,13 +201,38 @@ class LessonSessionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearConceptSuggestions({bool notifyListenersNow = true}) {
+    _pendingConceptProblem = null;
+    _conceptBreakdown = [];
+    _selectedConcept = null;
+    _isAnalyzingConcepts = false;
+    _detectedConcept = null;
+    if (notifyListenersNow) {
+      notifyListeners();
+    }
+  }
+
+  void selectConcept(ConceptBreakdown concept) {
+    if (!_conceptBreakdown.contains(concept)) return;
+    _selectedConcept = concept;
+    _detectedConcept = concept.name;
+    notifyListeners();
+  }
+
+  void deselectConcept() {
+    if (_selectedConcept == null) return;
+    _selectedConcept = null;
+    _detectedConcept = null;
+    notifyListeners();
+  }
+
   String _buildFeedback(int score) {
     if (score >= 85) {
-      return 'Excellent work! You clearly understand the concept.';
+      return '정말 잘했어요! 개념을 확실히 이해했네요.';
     } else if (score >= 60) {
-      return 'Nice job! A bit more practice will make it stick.';
+      return '잘하고 있어요! 조금만 더 연습하면 완전히 익힐 수 있어요.';
     } else {
-      return 'Let us revisit the explanation and walk through the example together.';
+      return '설명을 다시 살펴보고 함께 예제를 풀어봐요.';
     }
   }
 }

@@ -5,6 +5,7 @@ import '../../../core/services/speech_service.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../subscription/application/subscription_provider.dart';
 import '../application/lesson_session_provider.dart';
+import '../../../l10n/app_localizations.dart';
 
 class LessonScreen extends StatefulWidget {
   const LessonScreen({super.key});
@@ -17,15 +18,100 @@ class LessonScreen extends StatefulWidget {
 
 class _LessonScreenState extends State<LessonScreen> {
   final _topicController = TextEditingController();
-  final _problemController = TextEditingController();
   final _explanationController = TextEditingController();
-  int _selectedGrade = 5;
+  int _selectedAge = 12;
   bool _isListening = false;
+
+  void _resetGeneratedContent(LessonSessionProvider session) {
+    if (_isListening) {
+      setState(() => _isListening = false);
+    }
+
+    final disallowResetStages = {
+      LessonStage.generatingContent,
+      LessonStage.evaluating,
+    };
+
+    if (disallowResetStages.contains(session.stage)) {
+      return;
+    }
+
+    final hasGeneratedContent =
+        session.conceptExplanation != null ||
+        session.aiFeedback != null ||
+        session.requiresEvaluation ||
+        session.stage == LessonStage.ready ||
+        session.stage == LessonStage.awaitingEvaluation ||
+        session.stage == LessonStage.completed;
+
+    final hasUserExplanation = _explanationController.text.isNotEmpty;
+
+    if (!hasGeneratedContent && !hasUserExplanation) {
+      return;
+    }
+
+    session.reset();
+    _explanationController.clear();
+  }
+
+  void _handlePromptChanged(String value, LessonSessionProvider session) {
+    _resetGeneratedContent(session);
+    final trimmed = value.trim();
+    if (trimmed.length >= 6) {
+      session.analyzeProblem(trimmed);
+    } else if (session.conceptBreakdown.isNotEmpty ||
+        session.isAnalyzingConcepts) {
+      session.clearConceptSuggestions();
+    }
+  }
+
+  Future<void> _startLessonWithTopic(
+    BuildContext context,
+    LessonSessionProvider session,
+    String topic,
+  ) async {
+    if (session.stage == LessonStage.generatingContent ||
+        session.stage == LessonStage.evaluating) {
+      return;
+    }
+
+    final trimmedTopic = topic.trim();
+    final l10n = context.l10n;
+    if (trimmedTopic.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.lessonEnterTopicFirst)));
+      return;
+    }
+
+    final subscription = context.read<SubscriptionProvider>();
+    if (!subscription.canAskNewQuestion()) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.lessonDailyLimitReached)));
+      return;
+    }
+
+    final auth = context.read<AuthProvider>();
+    FocusScope.of(context).unfocus();
+
+    await session.startLesson(
+      topic: trimmedTopic,
+      age: _selectedAge,
+      learnerName:
+          auth.currentUser?.displayName ?? context.l10n.generalLearnerFallback,
+    );
+    subscription.registerQuestionAsked();
+    session.clearConceptSuggestions();
+    if (!mounted) return;
+    setState(() {
+      _topicController.text = trimmedTopic;
+    });
+  }
 
   @override
   void dispose() {
     _topicController.dispose();
-    _problemController.dispose();
     _explanationController.dispose();
     super.dispose();
   }
@@ -33,9 +119,10 @@ class _LessonScreenState extends State<LessonScreen> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<LessonSessionProvider>();
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Adaptive lesson')),
+      appBar: AppBar(title: Text(l10n.lessonAppBarTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -69,7 +156,7 @@ class _LessonScreenState extends State<LessonScreen> {
                   Navigator.of(context).pop();
                 }
               },
-              child: const Text('Save lesson & return'),
+              child: Text(l10n.lessonSaveAndReturn),
             ),
         ],
       ),
@@ -77,10 +164,9 @@ class _LessonScreenState extends State<LessonScreen> {
   }
 
   Widget _buildTopicCard(BuildContext context, LessonSessionProvider session) {
-    final auth = context.read<AuthProvider>();
-    final subscription = context.read<SubscriptionProvider>();
     final speech = context.read<SpeechService>();
     final stage = session.stage;
+    final l10n = context.l10n;
 
     return Card(
       child: Padding(
@@ -89,35 +175,51 @@ class _LessonScreenState extends State<LessonScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Tell MathMind what to learn',
+              l10n.lessonTellWhatToLearn,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _topicController,
-              decoration: const InputDecoration(
-                labelText: 'Math topic or concept',
-                hintText: 'e.g. Fractions addition',
+              decoration: InputDecoration(
+                labelText: l10n.lessonTopicLabel,
+                hintText: l10n.lessonTopicHint,
               ),
+              onChanged: (value) => _handlePromptChanged(value, session),
             ),
+            if (session.isAnalyzingConcepts)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: LinearProgressIndicator(),
+              ),
+            if (!session.isAnalyzingConcepts &&
+                session.conceptBreakdown.isNotEmpty)
+              _buildConceptHelper(context, session),
             const SizedBox(height: 12),
             Row(
               children: [
-                const Text('Target grade:'),
+                Text(l10n.lessonTargetAge),
                 Expanded(
                   child: Slider(
-                    value: _selectedGrade.toDouble(),
-                    min: 1,
-                    max: 12,
-                    divisions: 11,
-                    label: 'Grade $_selectedGrade',
-                    onChanged: stage == LessonStage.generatingContent
+                    value: _selectedAge.toDouble(),
+                    min: 5,
+                    max: 19,
+                    divisions: 14,
+                    label: l10n.lessonAgeLabel(_selectedAge),
+                    onChanged:
+                        stage == LessonStage.generatingContent ||
+                            stage == LessonStage.evaluating
                         ? null
-                        : (value) =>
-                              setState(() => _selectedGrade = value.round()),
+                        : (value) {
+                            final newAge = value.round();
+                            if (newAge != _selectedAge) {
+                              _resetGeneratedContent(session);
+                              setState(() => _selectedAge = newAge);
+                            }
+                          },
                   ),
                 ),
-                Text('$_selectedGrade'),
+                Text(l10n.lessonAgeLabel(_selectedAge)),
               ],
             ),
             const SizedBox(height: 12),
@@ -125,37 +227,17 @@ class _LessonScreenState extends State<LessonScreen> {
               spacing: 8,
               children: [
                 FilledButton.icon(
-                  onPressed: stage == LessonStage.generatingContent
+                  onPressed:
+                      stage == LessonStage.generatingContent ||
+                          stage == LessonStage.evaluating
                       ? null
-                      : () async {
-                          if (!subscription.canAskNewQuestion()) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Daily question limit reached.'),
-                              ),
-                            );
-                            return;
-                          }
-                          final topic = _topicController.text.trim();
-                          if (topic.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Enter a topic first.'),
-                              ),
-                            );
-                            return;
-                          }
-                          await session.startLesson(
-                            topic: topic,
-                            grade: _selectedGrade,
-                            learnerName:
-                                auth.currentUser?.displayName ?? 'Learner',
-                          );
-                          subscription.registerQuestionAsked();
-                          _problemController.clear();
-                        },
+                      : () => _startLessonWithTopic(
+                          context,
+                          session,
+                          _topicController.text,
+                        ),
                   icon: const Icon(Icons.auto_awesome),
-                  label: const Text('Generate lesson'),
+                  label: Text(l10n.lessonGenerate),
                 ),
                 OutlinedButton.icon(
                   onPressed: session.conceptExplanation == null
@@ -165,7 +247,7 @@ class _LessonScreenState extends State<LessonScreen> {
                           await speech.speak(content);
                         },
                   icon: const Icon(Icons.volume_up_outlined),
-                  label: const Text('Listen'),
+                  label: Text(l10n.lessonListen),
                 ),
               ],
             ),
@@ -180,12 +262,80 @@ class _LessonScreenState extends State<LessonScreen> {
     );
   }
 
+  Widget _buildConceptHelper(
+    BuildContext context,
+    LessonSessionProvider session,
+  ) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+
+    final conceptChips = session.conceptBreakdown
+        .map(
+          (concept) => ChoiceChip(
+            label: Text(concept.name),
+            selected: session.selectedConcept == concept,
+            onSelected: (selected) {
+              if (selected) {
+                session.selectConcept(concept);
+                _startLessonWithTopic(context, session, concept.name);
+              } else {
+                session.deselectConcept();
+              }
+            },
+          ),
+        )
+        .toList();
+
+    final explanation =
+        session.selectedConcept?.summary.trim().isNotEmpty == true
+        ? session.selectedConcept!.summary.trim()
+        : l10n.lessonConceptNoSelection;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.lessonConceptHelperTitle,
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(l10n.lessonConceptHelperHint, style: theme.textTheme.bodySmall),
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: conceptChips),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.lessonConceptExplanationTitle,
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(explanation, style: theme.textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEvaluationCard(
     BuildContext context,
     LessonSessionProvider session,
   ) {
     final speech = context.read<SpeechService>();
     final stage = session.stage;
+    final l10n = context.l10n;
 
     return Card(
       child: Padding(
@@ -194,27 +344,15 @@ class _LessonScreenState extends State<LessonScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Explain the concept back to MathMind',
+              l10n.lessonExplainBack,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _problemController,
-              decoration: const InputDecoration(
-                labelText: 'Optional: paste a question you are working on',
-              ),
-              minLines: 1,
-              maxLines: 3,
-              onChanged: (value) {
-                if (value.trim().length > 10) {
-                  session.analyzeProblem(value);
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
               controller: _explanationController,
-              decoration: const InputDecoration(labelText: 'Your explanation'),
+              decoration: InputDecoration(
+                labelText: l10n.lessonYourExplanation,
+              ),
               minLines: 4,
               maxLines: 8,
             ),
@@ -229,8 +367,8 @@ class _LessonScreenState extends State<LessonScreen> {
                               .trim();
                           if (explanation.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Share your explanation first.'),
+                              SnackBar(
+                                content: Text(l10n.lessonShareExplanationFirst),
                               ),
                             );
                             return;
@@ -238,7 +376,7 @@ class _LessonScreenState extends State<LessonScreen> {
                           await session.evaluateUnderstanding(explanation);
                         },
                   icon: const Icon(Icons.analytics_outlined),
-                  label: const Text('Evaluate understanding'),
+                  label: Text(l10n.lessonEvaluateUnderstanding),
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton.icon(
@@ -259,8 +397,8 @@ class _LessonScreenState extends State<LessonScreen> {
                             setState(() => _isListening = false);
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Voice capture not available.'),
+                                SnackBar(
+                                  content: Text(l10n.lessonVoiceUnavailable),
                                 ),
                               );
                             }
@@ -268,7 +406,9 @@ class _LessonScreenState extends State<LessonScreen> {
                         },
                   icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
                   label: Text(
-                    _isListening ? 'Listening...' : 'Speak explanation',
+                    _isListening
+                        ? l10n.lessonListening
+                        : l10n.lessonSpeakExplanation,
                   ),
                 ),
               ],
@@ -292,6 +432,7 @@ class _ExplanationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -299,7 +440,7 @@ class _ExplanationCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'MathMind explanation',
+              l10n.lessonExplanationTitle,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
@@ -319,9 +460,11 @@ class _FeedbackCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scoreLabel = score?.toString() ?? '-';
     final chips = <Widget>[
       Chip(
-        label: Text('Understanding: ${score ?? '-'}'),
+        label: Text(l10n.lessonUnderstandingLabel(scoreLabel)),
         avatar: const Icon(Icons.assessment_outlined),
       ),
     ];

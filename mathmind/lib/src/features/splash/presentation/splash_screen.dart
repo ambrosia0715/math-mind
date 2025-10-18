@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../auth/application/auth_provider.dart';
+import '../../auth/presentation/auth_screen.dart';
 import '../../dashboard/presentation/dashboard_shell.dart';
+import '../../../l10n/app_localizations.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -32,11 +34,17 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed(DashboardShell.routeName);
+
+    final nextRoute = auth.isSignedIn
+        ? DashboardShell.routeName
+        : AuthScreen.routeName;
+
+    Navigator.of(context).pushReplacementNamed(nextRoute);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       body: Center(
         child: Column(
@@ -45,7 +53,7 @@ class _SplashScreenState extends State<SplashScreen> {
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
             Text(
-              'Loading MathMind',
+              l10n.splashLoading,
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ],

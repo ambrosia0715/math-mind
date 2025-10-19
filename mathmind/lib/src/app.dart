@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/config/app_env.dart';
 import 'core/services/ai_content_service.dart';
+import 'core/services/daily_limit_storage.dart';
 import 'core/services/lesson_history_service.dart';
+import 'core/services/math_expression_service.dart';
 import 'core/services/speech_service.dart';
 import 'core/services/subscription_service.dart';
 import 'features/auth/application/auth_provider.dart';
@@ -33,6 +37,13 @@ class MathMindApp extends StatelessWidget {
         Provider(create: (_) => AiContentService(env)),
         Provider(create: (_) => SpeechService()),
         Provider(
+          create: (_) => MathExpressionService(),
+          dispose: (_, service) {
+            unawaited(service.dispose());
+          },
+        ),
+        Provider(create: (_) => DailyLimitStorage()),
+        Provider(
           create: (context) =>
               RetentionService(context.read<LessonHistoryService>()),
         ),
@@ -40,6 +51,8 @@ class MathMindApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => SubscriptionProvider(
             service: context.read<SubscriptionService>(),
+            dailyLimitStorage: context.read<DailyLimitStorage>(),
+            authProvider: context.read<AuthProvider>(),
           ),
         ),
         ChangeNotifierProvider(

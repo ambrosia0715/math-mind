@@ -16,7 +16,6 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -26,7 +25,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
-    _usernameController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -64,8 +62,6 @@ class _AuthScreenState extends State<AuthScreen> {
                           const SizedBox(height: 16),
                         ],
                         if (_isSignUp) ...[
-                          _buildUsernameField(),
-                          const SizedBox(height: 16),
                           _buildNameField(),
                           const SizedBox(height: 16),
                         ],
@@ -141,32 +137,6 @@ class _AuthScreenState extends State<AuthScreen> {
           style: subtitleStyle,
         ),
       ],
-    );
-  }
-
-  Widget _buildUsernameField() {
-    return TextFormField(
-      controller: _usernameController,
-      textInputAction: TextInputAction.next,
-      autofillHints: const [AutofillHints.username],
-      decoration: const InputDecoration(
-        labelText: '아이디',
-        hintText: '영문 또는 숫자 조합 3자 이상',
-      ),
-      validator: (value) {
-        final trimmed = value?.trim() ?? '';
-        if (!_isSignUp) {
-          return null;
-        }
-        if (trimmed.isEmpty) {
-          return '아이디를 입력해주세요.';
-        }
-        final pattern = RegExp(r'^[a-zA-Z0-9_]{3,}$');
-        if (!pattern.hasMatch(trimmed)) {
-          return '아이디는 3자 이상의 영문, 숫자, 밑줄만 사용할 수 있습니다.';
-        }
-        return null;
-      },
     );
   }
 
@@ -270,7 +240,6 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       if (_isSignUp) {
         await auth.registerWithEmail(
-          username: _usernameController.text.trim(),
           name: _nameController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text,

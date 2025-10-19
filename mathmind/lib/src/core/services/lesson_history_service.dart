@@ -45,6 +45,36 @@ class LessonHistoryService {
     return _guardPermissions(stream, context: 'watchDueReviews');
   }
 
+  Future<LessonHistory?> fetchLatestByTopic({
+    required String userId,
+    required String topic,
+  }) async {
+    try {
+      final snapshot = await _collection
+          .where('userId', isEqualTo: userId)
+          .where('topic', isEqualTo: topic)
+          .orderBy('learned_at', descending: true)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
+
+      return LessonHistory.fromFirestore(snapshot.docs.first);
+    } on FirebaseException catch (error, stackTrace) {
+      if (error.code == 'permission-denied') {
+        debugPrint('Firestore permission denied for fetchLatestByTopic; returning null.');
+        return null;
+      }
+      debugPrint('Failed to fetch latest lesson history: $error\n$stackTrace');
+      return null;
+    } catch (error, stackTrace) {
+      debugPrint('Failed to fetch latest lesson history: $error\n$stackTrace');
+      return null;
+    }
+  }
+
   Stream<List<LessonHistory>> _guardPermissions(
     Stream<List<LessonHistory>> stream, {
     required String context,

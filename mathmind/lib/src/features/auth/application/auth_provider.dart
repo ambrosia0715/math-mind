@@ -57,17 +57,14 @@ class AuthProvider extends ChangeNotifier {
   void clearError() => _setError(null);
 
   Future<void> registerWithEmail({
-    required String username,
     required String name,
     required String email,
     required String password,
   }) async {
-    final trimmedUsername = username.trim();
     final trimmedName = name.trim();
     final trimmedEmail = email.trim();
 
-    if (trimmedUsername.isEmpty ||
-        trimmedName.isEmpty ||
+    if (trimmedName.isEmpty ||
         trimmedEmail.isEmpty ||
         password.isEmpty) {
       const message = '모든 필드를 입력해주세요.';
@@ -79,7 +76,6 @@ class AuthProvider extends ChangeNotifier {
     _setError(null);
 
     try {
-      await _assertUsernameAvailable(trimmedUsername);
 
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: trimmedEmail,
@@ -99,8 +95,6 @@ class AuthProvider extends ChangeNotifier {
         'uid': firebaseUser.uid,
         'email': trimmedEmail,
         'name': trimmedName,
-        'username': trimmedUsername,
-        'usernameLower': trimmedUsername.toLowerCase(),
         'provider': 'password',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -234,7 +228,6 @@ class AuthProvider extends ChangeNotifier {
       var snapshot = await docRef.get();
 
       if (!snapshot.exists) {
-        final emailPrefix = firebaseUser.email?.split('@').first;
         final providerId = firebaseUser.providerData.isNotEmpty
             ? firebaseUser.providerData.first.providerId
             : (firebaseUser.isAnonymous ? 'anonymous' : 'firebase');
@@ -242,8 +235,6 @@ class AuthProvider extends ChangeNotifier {
           'uid': firebaseUser.uid,
           'email': firebaseUser.email,
           'name': firebaseUser.displayName,
-          'username': emailPrefix,
-          'usernameLower': emailPrefix?.toLowerCase(),
           'provider': providerId,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -254,14 +245,12 @@ class AuthProvider extends ChangeNotifier {
       }
 
       final data = snapshot.data();
-      final username = (data?['username'] as String?)?.trim();
       final displayName =
           (data?['name'] as String?)?.trim() ?? firebaseUser.displayName;
 
       _currentUser = AppUser.fromFirebaseUser(
         firebaseUser,
         displayNameOverride: displayName,
-        username: username,
       );
     } catch (error, stackTrace) {
       debugPrint('Failed to hydrate user profile: $error\n$stackTrace');
@@ -272,16 +261,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _assertUsernameAvailable(String username) async {
-    final query = await _firestore
-        .collection('users')
-        .where('usernameLower', isEqualTo: username.toLowerCase())
-        .limit(1)
-        .get();
-    if (query.docs.isNotEmpty) {
-      throw const AuthFailure('이미 사용 중인 아이디입니다.');
-    }
-  }
 
   void _setLoading(bool value) {
     if (_isLoading == value) {
@@ -307,6 +286,7 @@ class AuthProvider extends ChangeNotifier {
         return '이메일 형식이 올바르지 않습니다.';
       case 'weak-password':
         return '비밀번호는 6자 이상이어야 합니다.';
+      case 'invalid-credential':
       case 'user-not-found':
       case 'wrong-password':
         return '이메일 또는 비밀번호가 올바르지 않습니다.';

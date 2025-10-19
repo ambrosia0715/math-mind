@@ -81,7 +81,20 @@ class LessonSessionProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final explanation = await _aiContentService.explainConcept(
+      String? explanation;
+      final user = _authProvider.currentUser;
+      if (user != null) {
+        final recentLesson = await _historyService.fetchLatestByTopic(
+          userId: user.id,
+          topic: topic,
+        );
+        final cachedExplanation = recentLesson?.conceptExplanation?.trim();
+        if (cachedExplanation != null && cachedExplanation.isNotEmpty) {
+          explanation = cachedExplanation;
+        }
+      }
+
+      explanation ??= await _aiContentService.explainConcept(
         topic: topic,
         age: age,
         learnerName: learnerName,
@@ -173,9 +186,10 @@ class LessonSessionProvider extends ChangeNotifier {
         topic: _topic!,
         learnedAt: DateTime.now(),
         initialScore: _initialScore,
-        reviewDue: DateTime.now().add(const Duration(days: 2)),
+        reviewDue: DateTime.now().add(const Duration(minutes: 10)),
         retentionScore: null,
         detectedConcept: _detectedConcept,
+        conceptExplanation: _conceptExplanation,
       );
 
       await _historyService.save(history);

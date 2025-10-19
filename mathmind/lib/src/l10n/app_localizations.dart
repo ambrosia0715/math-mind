@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+﻿import 'package:flutter/widgets.dart';
 
 class AppLocalizations {
   AppLocalizations(this.locale);
@@ -38,6 +38,7 @@ class AppLocalizations {
       : 'Free plan includes 100 AI questions per day with text explanations.';
   String get homeQuestionsLeft => _isKorean ? '남은 질문 수' : 'Questions left';
   String get homeRetentionDue => _isKorean ? '복습 예정 수' : 'Retention due';
+  String get homeDailyLimitLoading => _isKorean ? '남은 질문 수를 불러오는 중이에요...' : 'Loading...';
   String get homeStartAdaptiveLesson =>
       _isKorean ? '맞춤형 수업 시작' : 'Start adaptive lesson';
   String get homeDailyLimitReachedUpgrade => _isKorean
@@ -112,12 +113,50 @@ class AppLocalizations {
       _isKorean ? '음성 인식 기능을 사용할 수 없어요.' : 'Voice capture not available.';
   String get lessonListening => _isKorean ? '듣는 중...' : 'Listening...';
   String get lessonSpeakExplanation =>
-      _isKorean ? '설명을 말하기' : 'Speak explanation';
+      _isKorean ? '설명을 말해 주세요' : 'Speak explanation';
   String get lessonExplanationTitle =>
-      _isKorean ? 'MathMind의 설명' : 'MathMind explanation';
+      _isKorean ? 'MathMind 설명' : 'MathMind explanation';
+  String get lessonOpenVisualExplanation =>
+      _isKorean ? '시각 설명 열기' : 'Open visual explanation';
+  String get lessonShowUnderstandingButton =>
+      _isKorean ? '이해했는지 확인해 보기' : 'Check my understanding';
+  String get lessonShowExplanationAgain =>
+      _isKorean ? '설명 다시 보기' : 'View explanation again';
+  String get lessonUnderstandingNotReady => _isKorean
+      ? '먼저 MathMind에게 설명을 들려주고 이해도 평가를 받아 주세요.'
+      : 'Share your explanation and evaluate it before checking understanding.';
+  String get lessonUnderstandingLow => _isKorean
+      ? '이해도가 아직 낮아요. 설명을 다시 읽고 함께 연습해 봐요!'
+      : 'Your understanding score is low. Let us review the explanation together.';
   String lessonUnderstandingLabel(String score) =>
       _isKorean ? '이해도: $score' : 'Understanding: $score';
 
+  String get visualExplanationTitle => _isKorean ? '시각 자료와 함께 보기' : 'Visual explanation';
+  String get visualExplanationLoading => _isKorean ? '시각 자료를 준비하는 중이에요...' : 'Preparing visual aids...';
+  String get visualExplanationError => _isKorean
+      ? '시각 자료를 만들지 못했어요. 잠시 후 다시 시도해 주세요.'
+      : 'We could not create the visual explanation. Please try again later.';
+  String get visualExplanationRetry =>
+      _isKorean ? '다시 시도' : 'Try again';
+  String get visualExplanationImageCaption => _isKorean
+      ? 'AI가 제안하는 시각 자료 예시'
+      : 'Suggested visual aid from AI';
+  String get reviewMissingContent => _isKorean
+      ? '이 학습의 설명이 아직 저장되지 않았어요.'
+      : 'This lesson explanation is not available yet.';
+  String reviewInitialScore(String score) =>
+      _isKorean ? '처음 점수: $score' : 'Initial score: $score';
+  String reviewRetentionScore(String score) =>
+      _isKorean ? '복습 점수: $score' : 'Retention score: $score';
+  String get reviewRetentionPending =>
+      _isKorean ? '아직 기록되지 않았어요.' : 'Not recorded yet.';
+  String get reviewRegenerating =>
+      _isKorean ? '설명을 다시 불러오는 중이에요...' : 'Generating a new explanation...';
+  String get reviewRegenerateButton =>
+      _isKorean ? '설명 다시 만들기' : 'Regenerate explanation';
+  String get reviewRegenerateError => _isKorean
+      ? '설명을 다시 만들지 못했어요. 잠시 후 다시 시도해 주세요.'
+      : 'We could not regenerate the explanation. Please try again later.';
   // Retention
   String get retentionAppBarTitle => _isKorean ? '복습 관리' : 'Retention review';
   String get retentionEmptyMessage => _isKorean
@@ -125,6 +164,7 @@ class AppLocalizations {
       : 'No reviews due today. Keep learning!';
   String retentionLearnedDate(String date) =>
       _isKorean ? '학습일: $date' : 'Learned: $date';
+  String get retentionOpenLesson => _isKorean ? '내용 다시 보기' : 'View lesson';
   String retentionConcept(String concept) =>
       _isKorean ? '개념: $concept' : 'Concept: $concept';
   String get retentionScoreLabel =>
@@ -199,3 +239,7 @@ class _AppLocalizationsDelegate
 extension AppLocalizationX on BuildContext {
   AppLocalizations get l10n => AppLocalizations.of(this);
 }
+
+
+
+

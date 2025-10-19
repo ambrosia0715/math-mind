@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../lessons/domain/lesson_history.dart';
+import '../../lessons/presentation/lesson_review_screen.dart';
 import '../application/retention_provider.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -89,6 +90,18 @@ class _RetentionTaskCardState extends State<_RetentionTaskCard> {
                   l10n.retentionConcept(widget.lesson.detectedConcept!),
                 ),
               ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => LessonReviewScreen(lesson: widget.lesson),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.visibility_outlined),
+              label: Text(l10n.retentionOpenLesson),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _controller,

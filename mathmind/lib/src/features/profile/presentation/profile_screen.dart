@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../auth/application/auth_provider.dart';
+import '../../auth/presentation/auth_screen.dart';
 import '../../subscription/application/subscription_provider.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -90,11 +91,16 @@ class ProfileScreen extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: () async {
               await auth.signOut();
-              if (context.mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(l10n.profileSignedOut)));
-              }
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(content: Text(l10n.profileSignedOut)),
+                );
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                AuthScreen.routeName,
+                (route) => false,
+              );
             },
             icon: const Icon(Icons.logout),
             label: Text(l10n.profileSignOut),

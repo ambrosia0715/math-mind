@@ -260,7 +260,7 @@ class AiContentService {
     }
   }
 
-  Future<String?> generateVisualAid({
+  Future<VisualExplanationImage?> generateVisualAid({
     required String topic,
     required String focus,
   }) async {
@@ -282,12 +282,115 @@ class AiContentService {
       if (response.data.isEmpty) {
         return null;
       }
+
       final image = response.data.first;
-      return image.url ?? image.b64Json;
+      final imageUrl = image.url;
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        return VisualExplanationImage(imageUrl: imageUrl);
+      }
+
+      final encoded = image.b64Json;
+      if (encoded == null || encoded.isEmpty) {
+        return null;
+      }
+
+      try {
+        final bytes = base64Decode(encoded);
+        return VisualExplanationImage(imageBytes: bytes);
+      } catch (error, stackTrace) {
+        debugPrint('Failed to decode visual aid: $error\n$stackTrace');
+        return null;
+      }
     } catch (error, stackTrace) {
-      debugPrint('DALL·E generation failed: $error\n$stackTrace');
+      debugPrint('DALL-E generation failed: $error\n$stackTrace');
       return null;
     }
+  }
+
+  Future<VisualExplanationResult> createVisualExplanation({
+    required String topic,
+    required int age,
+    required String learnerName,
+    bool requestImage = false,
+    String? imageFocus,
+  }) async {
+    final description = await _buildVisualDescription(
+      topic: topic,
+      age: age,
+      learnerName: learnerName,
+    );
+
+    final imageTask = requestImage
+        ? generateVisualAid(
+            topic: topic,
+            focus: imageFocus ?? topic,
+          )
+        : null;
+
+    return VisualExplanationResult(
+      description: description,
+      imageTask: imageTask,
+    );
+  }
+
+  Future<String> _buildVisualDescription({
+    required String topic,
+    required int age,
+    required String learnerName,
+  }) async {
+    final client = _clientOrNull;
+    const formatHint = '## Concept summary\n- Summarise the core idea in two short sentences\n\n'
+        '## Visual ideas\n- Visual 1: describe a chart, diagram, or drawing the learner can sketch\n'
+        '- Visual 2: describe a real-life story or scene that matches the concept\n\n'
+        '## Drawing tips\n- Provide simple steps the learner can follow with pencil and colours';
+    final userPrompt =
+        'Topic: $topic\nLearner name: $learnerName\nLearner age: $age years old\nUse the format above and respond in Korean.';
+
+    if (client == null) {
+      return _visualFallbackDescription(topic, age);
+    }
+
+    try {
+      final response = await client.createChatCompletion(
+        request: CreateChatCompletionRequest(
+          model: ChatCompletionModel.modelId('gpt-4o-mini'),
+          messages: [
+            ChatCompletionMessage.system(
+              content:
+                  'You are MathMind, a supportive maths tutor who adds visual storytelling to explanations. '
+                  'Use clear Korean language suited to the learner age. When presenting visual ideas, mention the shapes or layout that should appear.',
+            ),
+            ChatCompletionMessage.user(
+              content: ChatCompletionUserMessageContent.string(
+                '$formatHint\n\n$userPrompt',
+              ),
+            ),
+          ],
+        ),
+      );
+
+      final message = response.choices.first.message;
+      final output = message.maybeMap(
+        assistant: (assistant) => assistant.content,
+        orElse: () => null,
+      );
+      if (output == null || output.trim().isEmpty) {
+        return _visualFallbackDescription(topic, age);
+      }
+      return output.trim();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to build visual description: $error\n$stackTrace');
+      return _visualFallbackDescription(topic, age);
+    }
+  }
+
+  String _visualFallbackDescription(String topic, int age) {
+    return 'Visual explanation guide for $topic (age ${age.toString()}).\n\n'
+        '## Concept summary\n- Highlight the main idea in two friendly sentences.\n\n'
+        '## Visual ideas\n- Visual 1: sketch the concept with simple shapes or a chart.\n'
+        '- Visual 2: draw a real-life scenario that matches the idea.\n\n'
+        '## Drawing tips\n- Use pencils and colours to label each step.\n'
+        '- Write key words next to the drawings to remember them.';
   }
 
   String _fallbackExplanation(String topic, int age) {
@@ -345,4 +448,33 @@ class ConceptBreakdown {
 
   @override
   int get hashCode => Object.hash(name, summary);
+}
+
+class VisualExplanationImage {
+  const VisualExplanationImage({
+    this.imageBytes,
+    this.imageUrl,
+  });
+
+  final Uint8List? imageBytes;
+  final String? imageUrl;
+
+  bool get hasData => imageBytes != null || imageUrl != null;
+}
+
+class VisualExplanationResult {
+  const VisualExplanationResult({
+    required this.description,
+    this.imageBytes,
+    this.imageUrl,
+    this.imageTask,
+  });
+
+  final String description;
+  final Uint8List? imageBytes;
+  final String? imageUrl;
+  final Future<VisualExplanationImage?>? imageTask;
+
+  bool get hasImage => imageBytes != null || imageUrl != null;
+  bool get canRequestAsyncImage => imageTask != null;
 }

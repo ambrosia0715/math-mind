@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/lesson_history_service.dart';
 import '../../auth/application/auth_provider.dart';
-import '../../lessons/application/lesson_session_provider.dart';
 import '../../lessons/domain/lesson_history.dart';
 import '../../lessons/presentation/lesson_screen.dart';
+import '../../lessons/presentation/lesson_review_screen.dart';
 import '../../retention/application/retention_provider.dart';
 import '../../subscription/application/subscription_provider.dart';
 import '../../subscription/domain/subscription_plan.dart';
@@ -63,6 +63,9 @@ class _LearningOverview extends StatelessWidget {
     final tierLabel = subscription.activeTier.name.toUpperCase();
     final remaining = subscription.remainingDailyQuestions;
     final l10n = context.l10n;
+    final remainingLabel = subscription.activeTier == SubscriptionTier.free
+        ? (remaining != null ? '$remaining' : l10n.homeDailyLimitLoading)
+        : l10n.generalUnlimited;
 
     return Card(
       child: Padding(
@@ -90,9 +93,7 @@ class _LearningOverview extends StatelessWidget {
                 _PillStatistic(
                   icon: Icons.chat_bubble_outline,
                   label: l10n.homeQuestionsLeft,
-                  value: subscription.activeTier == SubscriptionTier.free
-                      ? '${remaining ?? 0}'
-                      : l10n.generalUnlimited,
+                  value: remainingLabel,
                 ),
                 const SizedBox(width: 12),
                 _PillStatistic(
@@ -127,22 +128,26 @@ class _PillStatistic extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(16),
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: theme.colorScheme.primary),
-            const SizedBox(width: 12),
+            Icon(icon, size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: theme.textTheme.bodySmall),
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
                 Text(
                   value,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
+                  style: theme.textTheme.titleMedium,
                 ),
               ],
             ),
@@ -160,8 +165,8 @@ class _ActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sessionProvider = context.watch<LessonSessionProvider>();
     final theme = Theme.of(context);
+    final isReady = subscription.isDailyLimitReady;
     final canAsk = subscription.canAskNewQuestion();
     final l10n = context.l10n;
 
@@ -185,88 +190,14 @@ class _ActionButtons extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              l10n.homeDailyLimitReachedUpgrade,
+              isReady
+                  ? l10n.homeDailyLimitReachedUpgrade
+                  : l10n.homeDailyLimitLoading,
               style: theme.textTheme.bodySmall,
             ),
           ),
         const SizedBox(height: 12),
-        if (subscription.hasPremiumAccess)
-          OutlinedButton.icon(
-            onPressed: sessionProvider.detectedConcept == null
-                ? null
-                : () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.homeVisualExplanationSoon)),
-                    );
-                  },
-            icon: const Icon(Icons.image_outlined),
-            label: Text(l10n.homeOpenVisualExplanation),
-          )
-        else
-          TextButton(
-            onPressed: () {
-              showModalBottomSheet<void>(
-                context: context,
-                builder: (_) => const _UpgradeSheet(),
-              );
-            },
-            child: Text(
-              l10n.homeUpgradeForVisual,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ),
       ],
-    );
-  }
-}
-
-class _UpgradeSheet extends StatelessWidget {
-  const _UpgradeSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    final subscription = context.watch<SubscriptionProvider>();
-    final offerings = subscription.offerings;
-    final packages = offerings?.current?.availablePackages ?? [];
-    final l10n = context.l10n;
-
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.homeUpgradeTitle,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            l10n.homeUpgradeBody,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 24),
-          if (packages.isEmpty)
-            Text(l10n.homePlansLoading)
-          else
-            for (final package in packages)
-              ListTile(
-                title: Text(package.storeProduct.title),
-                subtitle: Text(package.storeProduct.description),
-                trailing: Text(package.storeProduct.priceString),
-                onTap: () async {
-                  await context.read<SubscriptionProvider>().purchasePlan(
-                    package,
-                  );
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-                },
-              ),
-        ],
-      ),
     );
   }
 }
@@ -310,6 +241,14 @@ class _LessonHistoryPanel extends StatelessWidget {
                   leading: const Icon(Icons.bookmark_added_outlined),
                   title: Text(lesson.topic),
                   subtitle: Text(_buildLessonSubtitle(context, lesson)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => LessonReviewScreen(lesson: lesson),
+                      ),
+                    );
+                  },
                 ),
               ),
           ],

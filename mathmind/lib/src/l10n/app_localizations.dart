@@ -28,6 +28,7 @@ class AppLocalizations {
   String get navProfile => _isKorean ? '프로필' : 'Profile';
   String get generalUnlimited => _isKorean ? '무제한' : 'Unlimited';
   String get generalLearnerFallback => _isKorean ? '학습자' : 'Learner';
+  String get generalClose => _isKorean ? '닫기' : 'Close';
 
   // Home screen
   String get homeWelcomeBack => _isKorean ? '다시 만나서 반가워요!' : 'Welcome back!';
@@ -38,7 +39,8 @@ class AppLocalizations {
       : 'Free plan includes 100 AI questions per day with text explanations.';
   String get homeQuestionsLeft => _isKorean ? '남은 질문 수' : 'Questions left';
   String get homeRetentionDue => _isKorean ? '복습 예정 수' : 'Retention due';
-  String get homeDailyLimitLoading => _isKorean ? '남은 질문 수를 불러오는 중이에요...' : 'Loading...';
+  String get homeDailyLimitLoading =>
+      _isKorean ? '남은 질문 수를 불러오는 중이에요...' : 'Loading...';
   String get homeStartAdaptiveLesson =>
       _isKorean ? '맞춤형 수업 시작' : 'Start adaptive lesson';
   String get homeDailyLimitReachedUpgrade => _isKorean
@@ -89,6 +91,9 @@ class AppLocalizations {
       _isKorean ? '오늘의 질문 제한에 도달했어요.' : 'Daily question limit reached.';
   String get lessonEnterTopicFirst =>
       _isKorean ? '먼저 학습 주제를 입력해 주세요.' : 'Enter a topic first.';
+  String get lessonTopicNeedsMath => _isKorean
+      ? '수학 개념이나 문제를 입력해 줘. 예: 분수 나누기, 2x + 3 = 7'
+      : 'Please enter a math concept or problem. e.g., Fractions or 2x + 3 = 7';
   String get lessonGenerate => _isKorean ? '수업 만들기' : 'Generate lesson';
   String get lessonListen => _isKorean ? '듣기' : 'Listen';
   String get lessonExplainBack => _isKorean
@@ -114,10 +119,11 @@ class AppLocalizations {
   String get lessonListening => _isKorean ? '듣는 중...' : 'Listening...';
   String get lessonSpeakExplanation =>
       _isKorean ? '설명을 말해 주세요' : 'Speak explanation';
+  String get lessonStopSpeaking => _isKorean ? '음성 중지' : 'Stop speaking';
   String get lessonExplanationTitle =>
       _isKorean ? 'MathMind 설명' : 'MathMind explanation';
-  String get lessonOpenVisualExplanation =>
-      _isKorean ? '시각 설명 열기' : 'Open visual explanation';
+  String get lessonShowMoreDetail =>
+      _isKorean ? '더 자세히 보기' : 'View detailed explanation';
   String get lessonShowUnderstandingButton =>
       _isKorean ? '이해했는지 확인해 보기' : 'Check my understanding';
   String get lessonShowExplanationAgain =>
@@ -131,16 +137,20 @@ class AppLocalizations {
   String lessonUnderstandingLabel(String score) =>
       _isKorean ? '이해도: $score' : 'Understanding: $score';
 
-  String get visualExplanationTitle => _isKorean ? '시각 자료와 함께 보기' : 'Visual explanation';
-  String get visualExplanationLoading => _isKorean ? '시각 자료를 준비하는 중이에요...' : 'Preparing visual aids...';
+  String get visualExplanationTitle =>
+      _isKorean ? '자세한 설명 & 시각 자료' : 'Detailed explanation';
+  String get visualExplanationLoading =>
+      _isKorean ? '자세한 내용을 불러오는 중이에요...' : 'Loading detailed explanation...';
   String get visualExplanationError => _isKorean
       ? '시각 자료를 만들지 못했어요. 잠시 후 다시 시도해 주세요.'
       : 'We could not create the visual explanation. Please try again later.';
-  String get visualExplanationRetry =>
-      _isKorean ? '다시 시도' : 'Try again';
-  String get visualExplanationImageCaption => _isKorean
-      ? 'AI가 제안하는 시각 자료 예시'
-      : 'Suggested visual aid from AI';
+  String get visualExplanationRetry => _isKorean ? '다시 시도' : 'Try again';
+  String visualExplanationFocus(String focus) =>
+      _isKorean ? '중점: $focus' : 'Focus: $focus';
+  String get visualExplanationImageCaption =>
+      _isKorean ? 'AI가 제안하는 시각 자료 예시' : 'Suggested visual aid from AI';
+  String get visualExplanationGenerateImage =>
+      _isKorean ? '시각 자료 만들기' : 'Generate visual aid';
   String get reviewMissingContent => _isKorean
       ? '이 학습의 설명이 아직 저장되지 않았어요.'
       : 'This lesson explanation is not available yet.';
@@ -239,7 +249,3 @@ class _AppLocalizationsDelegate
 extension AppLocalizationX on BuildContext {
   AppLocalizations get l10n => AppLocalizations.of(this);
 }
-
-
-
-

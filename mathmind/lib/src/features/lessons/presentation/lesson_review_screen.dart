@@ -42,8 +42,9 @@ class _LessonReviewScreenState extends State<LessonReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final initialScore =
-        _lesson.initialScore != null ? '${_lesson.initialScore}' : '-';
+    final initialScore = _lesson.initialScore != null
+        ? '${_lesson.initialScore}'
+        : '-';
     final retentionScoreLabel = _lesson.retentionScore != null
         ? '${_lesson.retentionScore}'
         : l10n.reviewRetentionPending;
@@ -140,7 +141,7 @@ class _LessonReviewScreenState extends State<LessonReviewScreen> {
 
       final explanation = await aiService.explainConcept(
         topic: _lesson.topic,
-        age: 12,
+        difficulty: 5,
         learnerName: learnerName,
       );
       final trimmed = explanation.trim();

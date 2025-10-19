@@ -22,13 +22,14 @@ class AiContentService {
 
   Future<String> explainConcept({
     required String topic,
-    required int age,
+    required int difficulty,
     required String learnerName,
     bool includeVisualPrompt = false,
   }) async {
     final prompt =
-        '수학 개념 "$topic"을(를) $age세 학습자가 이해할 수 있도록 단계별로 정리해 주세요. '
-        '어려운 전문 용어가 필요한 경우에는 반드시 짧게 풀이 표현을 덧붙이고, 가능한 한 $age세 학습자가 일상에서 쓰는 쉬운 단어를 사용해 주세요. '
+        '수학 개념 "$topic"을(를) 난이도 $difficulty 단계에 맞춰 설명해 주세요. '
+        '난이도 0은 아주 쉬운 설명(초등 저학년 수준, 그림/비유/일상 예시 위주), 난이도 9는 고급 설명(수식, 정의, 증명, 심화 개념 포함)입니다. '
+        '난이도가 높아질수록 더 전문적이고 깊이 있게, 낮을수록 더 쉽고 직관적으로 설명해 주세요. '
         '친근한 말투와 짧은 문단을 사용하고, 아래 구조를 따라 작성해 주세요:\n'
         '1) 핵심 아이디어 한 문단\n'
         '2) 예시 또는 직관적 설명 한 문단\n'
@@ -36,7 +37,7 @@ class AiContentService {
 
     final client = _clientOrNull;
     if (client == null) {
-      return _fallbackExplanation(topic, age);
+      return _fallbackExplanation(topic, difficulty);
     }
 
     try {
@@ -46,7 +47,7 @@ class AiContentService {
           messages: [
             ChatCompletionMessage.system(
               content:
-                  '당신은 MathMind이며, 학습자의 나이에 맞춰 설명해 주는 격려하는 수학 튜터입니다. '
+                  '당신은 MathMind이며, 학습자의 난이도에 맞춰 설명해 주는 격려하는 수학 튜터입니다. '
                   '어려운 표현이 필요하면 간단한 풀이를 덧붙이고, 가능한 한 학습자가 평소 사용하는 쉬운 단어를 선택하세요. '
                   '모든 응답은 한국어로 작성하세요.',
             ),
@@ -65,18 +66,18 @@ class AiContentService {
         orElse: () => null,
       );
       if (output == null || output.trim().isEmpty) {
-        return _fallbackExplanation(topic, age);
+        return _fallbackExplanation(topic, difficulty);
       }
       return output.trim();
     } catch (error, stackTrace) {
       debugPrint('Failed to call OpenAI: $error\n$stackTrace');
-      return _fallbackExplanation(topic, age);
+      return _fallbackExplanation(topic, difficulty);
     }
   }
 
   Future<List<ConceptBreakdown>> analyzeProblemConcepts({
     required String problem,
-    required int age,
+    required int difficulty,
   }) async {
     final client = _clientOrNull;
     if (client == null) {
@@ -120,7 +121,7 @@ class AiContentService {
             ),
             ChatCompletionMessage.user(
               content: ChatCompletionUserMessageContent.string(
-                '문제: $problem\n학습자 나이: $age세',
+                '문제: $problem\n난이도: $difficulty 단계',
               ),
             ),
           ],
@@ -263,6 +264,7 @@ class AiContentService {
   Future<VisualExplanationImage?> generateVisualAid({
     required String topic,
     required String focus,
+    required int difficulty,
   }) async {
     final client = _clientOrNull;
     if (client == null) {
@@ -270,10 +272,20 @@ class AiContentService {
     }
 
     try {
+      final prompt = [
+        '다음 주제 "$topic"을(를) 설명하는 데 도움이 되는, 학생 친화적인 삽화를 만들어 주세요.',
+        '특히 다음 요소에 집중해 주세요: $focus.',
+        if (difficulty < 3)
+          '과일, 장난감, 블록 등 친숙한 사물을 사용하고, 색상은 선명하게, 라벨은 최소화해 주세요.'
+        else
+          '난이도 $difficulty 단계에 적합한 깔끔한 도식, 라벨이 있는 축/도형, 간결한 주석을 사용해 주세요.',
+        '레이아웃은 단순하게 유지하고 한눈에 개념이 이해되도록 해 주세요.',
+        '최종 출력 설명(텍스트)은 반드시 한국어로 작성하세요.',
+      ].join(' ');
+
       final response = await client.createImage(
         request: CreateImageRequest(
-          prompt:
-              'Create a clear, student-friendly diagram that explains $topic with focus on $focus.',
+          prompt: prompt,
           model: const CreateImageRequestModel.model(ImageModels.gptImage1),
           size: ImageSize.v1024x1024,
           responseFormat: ImageResponseFormat.b64Json,
@@ -309,21 +321,24 @@ class AiContentService {
 
   Future<VisualExplanationResult> createVisualExplanation({
     required String topic,
-    required int age,
+    required int difficulty,
     required String learnerName,
     bool requestImage = false,
     String? imageFocus,
+    String? baseExplanation,
   }) async {
     final description = await _buildVisualDescription(
       topic: topic,
-      age: age,
+      difficulty: difficulty,
       learnerName: learnerName,
+      baseExplanation: baseExplanation,
     );
 
     final imageTask = requestImage
         ? generateVisualAid(
             topic: topic,
             focus: imageFocus ?? topic,
+            difficulty: difficulty,
           )
         : null;
 
@@ -335,19 +350,32 @@ class AiContentService {
 
   Future<String> _buildVisualDescription({
     required String topic,
-    required int age,
+    required int difficulty,
     required String learnerName,
+    String? baseExplanation,
   }) async {
     final client = _clientOrNull;
-    const formatHint = '## Concept summary\n- Summarise the core idea in two short sentences\n\n'
-        '## Visual ideas\n- Visual 1: describe a chart, diagram, or drawing the learner can sketch\n'
-        '- Visual 2: describe a real-life story or scene that matches the concept\n\n'
-        '## Drawing tips\n- Provide simple steps the learner can follow with pencil and colours';
+    const baseFormat =
+        '## 개념 깊이 보기\n'
+        '- 정의: 이 개념이 무엇인지 쉬운 말로 설명하고, 필요하면 기호나 공식도 함께 보여줄게\n'
+        '- 핵심 규칙: 꼭 기억해야 할 규칙이나 공식을 2~4줄로 정리할게\n'
+        '- 단계별 풀이법: 문제를 풀 때 따라갈 수 있는 순서를 3~6단계로 알려줄게\n'
+        '- 흔한 실수: 자주 틀리는 부분과 올바르게 이해하는 방법을 설명할게\n'
+        '- 예시: 간단한 예제 1~2개와 풀이 과정, 실생활에서 어떻게 쓰이는지 보여줄게\n'
+        '- 이해도 체크: 스스로 이해했는지 확인할 수 있는 질문 3가지';
+    final difficultyGuidance = difficulty < 3
+        ? '난이도 $difficulty 단계에 맞춰 따뜻하고 쉬운 한국어를 사용하세요. 과일, 장난감, 블록 같은 친숙한 사물을 활용해 세기/묶기/비교를 자연스럽게 연결해 주세요. 학습자에게 직접 말하듯이 "너는", "네가" 같은 표현을 사용하세요.'
+        : '난이도 $difficulty 단계에 맞춰 간결하고 명확한 한국어를 사용하세요. 난이도가 높을수록 더 전문적인 용어와 심화 개념을 포함하세요. 학습자에게 직접 설명하듯이 "당신은", "당신이", 또는 친근하게 "너는", "네가" 같은 표현을 사용하세요.';
+    final baseInfo =
+        (baseExplanation != null && baseExplanation.trim().isNotEmpty)
+        ? '\n\n[이미 제공된 기본 설명]\n$baseExplanation\n\n이 설명보다 더 깊이 있게 확장하세요. 같은 문장을 반복하지 말고, 누락된 정의/공식/절차/흔한 실수/예시/체크리스트를 채워 넣으세요.'
+        : '';
+    final formatHint = '$baseFormat\n\n지침: $difficultyGuidance$baseInfo';
     final userPrompt =
-        'Topic: $topic\nLearner name: $learnerName\nLearner age: $age years old\nUse the format above and respond in Korean.';
+        '주제: $topic\n학습자 이름: $learnerName\n난이도: $difficulty 단계\n위 형식을 그대로 따르고, 반드시 한국어로 작성하세요. 학습자에게 직접 설명하는 방식으로 작성하세요.';
 
     if (client == null) {
-      return _visualFallbackDescription(topic, age);
+      return _visualFallbackDescription(topic, difficulty);
     }
 
     try {
@@ -357,8 +385,10 @@ class AiContentService {
           messages: [
             ChatCompletionMessage.system(
               content:
-                  'You are MathMind, a supportive maths tutor who adds visual storytelling to explanations. '
-                  'Use clear Korean language suited to the learner age. When presenting visual ideas, mention the shapes or layout that should appear.',
+                  '당신은 MathMind이며, 학습자에게 직접 말하듯이 수학 개념을 설명하는 친절한 튜터입니다. '
+                  '모든 응답은 100% 한국어로 작성하세요. 영어 표현이 섞이지 않도록 주의하세요. '
+                  '학습자에게 직접 설명하는 방식으로 작성하세요. 예: "너는 이렇게 풀 수 있어", "당신은 이 공식을 사용하면 돼" 등. '
+                  '제3자에게 지시하는 표현("~해 주세요", "~알려 주세요")은 사용하지 마세요.',
             ),
             ChatCompletionMessage.user(
               content: ChatCompletionUserMessageContent.string(
@@ -375,26 +405,27 @@ class AiContentService {
         orElse: () => null,
       );
       if (output == null || output.trim().isEmpty) {
-        return _visualFallbackDescription(topic, age);
+        return _visualFallbackDescription(topic, difficulty);
       }
       return output.trim();
     } catch (error, stackTrace) {
       debugPrint('Failed to build visual description: $error\n$stackTrace');
-      return _visualFallbackDescription(topic, age);
+      return _visualFallbackDescription(topic, difficulty);
     }
   }
 
-  String _visualFallbackDescription(String topic, int age) {
-    return 'Visual explanation guide for $topic (age ${age.toString()}).\n\n'
-        '## Concept summary\n- Highlight the main idea in two friendly sentences.\n\n'
-        '## Visual ideas\n- Visual 1: sketch the concept with simple shapes or a chart.\n'
-        '- Visual 2: draw a real-life scenario that matches the idea.\n\n'
-        '## Drawing tips\n- Use pencils and colours to label each step.\n'
-        '- Write key words next to the drawings to remember them.';
+  String _visualFallbackDescription(String topic, int difficulty) {
+    return '## 개념 깊이 보기: $topic (난이도 $difficulty 단계)\n\n'
+        '- 정의: 핵심 용어를 쉬운 말로 설명할게\n'
+        '- 핵심 규칙: 꼭 알아야 할 공식이나 규칙을 정리해 줄게\n'
+        '- 단계별 풀이법: 문제 풀 때 따라갈 순서를 알려줄게\n'
+        '- 흔한 실수: 자주 하는 실수와 올바른 방법을 설명할게\n'
+        '- 예시: 간단한 예제와 풀이, 실생활에서 어떻게 쓰이는지 보여줄게\n'
+        '- 이해도 체크: 스스로 확인할 수 있는 질문 3개';
   }
 
-  String _fallbackExplanation(String topic, int age) {
-    return '함께 $topic을(를) 알아볼까요? $age세 친구가 쓰는 쉬운 말로 핵심 아이디어를 이야기해 보면...';
+  String _fallbackExplanation(String topic, int difficulty) {
+    return '함께 $topic을(를) 알아볼까요? 난이도 $difficulty 단계에 맞춰 아주 쉽게 핵심 아이디어를 이야기해 볼게요.';
   }
 
   String _fallbackDetectedConcept(String problemStatement) {
@@ -451,10 +482,7 @@ class ConceptBreakdown {
 }
 
 class VisualExplanationImage {
-  const VisualExplanationImage({
-    this.imageBytes,
-    this.imageUrl,
-  });
+  const VisualExplanationImage({this.imageBytes, this.imageUrl});
 
   final Uint8List? imageBytes;
   final String? imageUrl;

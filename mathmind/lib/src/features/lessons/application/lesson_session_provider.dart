@@ -61,14 +61,14 @@ class LessonSessionProvider extends ChangeNotifier {
 
   Future<void> startLesson({
     required String topic,
-    required int age,
+    required int difficulty,
     required String learnerName,
   }) async {
     if (!canStart) return;
 
     _stage = LessonStage.generatingContent;
     _topic = topic;
-    _targetAge = age;
+    _targetAge = difficulty;
     _conceptExplanation = null;
     _initialScore = null;
     _aiFeedback = null;
@@ -96,7 +96,7 @@ class LessonSessionProvider extends ChangeNotifier {
 
       explanation ??= await _aiContentService.explainConcept(
         topic: topic,
-        age: age,
+        difficulty: difficulty,
         learnerName: learnerName,
       );
       _conceptExplanation = explanation;
@@ -129,7 +129,7 @@ class LessonSessionProvider extends ChangeNotifier {
     try {
       final concepts = await _aiContentService.analyzeProblemConcepts(
         problem: trimmed,
-        age: _targetAge,
+        difficulty: _targetAge,
       );
       if (_pendingConceptProblem != trimmed) {
         return;

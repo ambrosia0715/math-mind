@@ -28,6 +28,16 @@ class _LessonScreenState extends State<LessonScreen> {
   String? _lastUserId;
   String? _lastCountedTopic;
   bool _didInitialReset = false;
+  
+  // 상세 설명 캐시 (주제가 동일하면 재사용)
+  String? _cachedDetailedExplanation;
+  String? _cachedTopic;
+  int? _cachedDifficulty;
+  
+  // 평가 캐시 (동일한 설명에 대해 재평가 방지)
+  String? _cachedEvaluationExplanation;
+  String? _cachedEvaluationTopic;
+  int? _cachedEvaluationDifficulty;
 
   // 내부 AI용 난이도 매핑: 0(쉬움) ~ 9(어려움)
   int get _aiDifficulty => (_selectedDifficulty - 1).clamp(0, 9);
@@ -306,6 +316,16 @@ class _LessonScreenState extends State<LessonScreen> {
               decoration: InputDecoration(labelText: l10n.lessonYourExplanation),
               minLines: 4,
               maxLines: 8,
+              onChanged: (text) {
+                // 설명 텍스트가 변경되면 평가 캐시 무효화
+                if (_cachedEvaluationExplanation != null) {
+                  setState(() {
+                    _cachedEvaluationExplanation = null;
+                    _cachedEvaluationTopic = null;
+                    _cachedEvaluationDifficulty = null;
+                  });
+                }
+              },
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -322,7 +342,31 @@ class _LessonScreenState extends State<LessonScreen> {
                             );
                             return;
                           }
+                          
+                          // 평가 캐시 확인: 동일한 설명+주제+난이도면 재평가 안 함
+                          final currentTopic = session.topic ?? '';
+                          if (_cachedEvaluationExplanation == explanation &&
+                              _cachedEvaluationTopic == currentTopic &&
+                              _cachedEvaluationDifficulty == _aiDifficulty &&
+                              session.aiFeedback != null) {
+                            // 캐시 히트: 이미 평가된 내용이므로 재평가 안 함
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('이미 평가된 설명입니다.')),
+                            );
+                            return;
+                          }
+                          
+                          // 새로운 평가 실행
                           await session.evaluateUnderstanding(explanation);
+                          
+                          // 평가 완료 후 캐시에 저장
+                          if (mounted && session.aiFeedback != null) {
+                            setState(() {
+                              _cachedEvaluationExplanation = explanation;
+                              _cachedEvaluationTopic = currentTopic;
+                              _cachedEvaluationDifficulty = _aiDifficulty;
+                            });
+                          }
                         },
                   icon: const Icon(Icons.analytics_outlined),
                   label: Text(l10n.lessonEvaluateUnderstanding),
@@ -394,7 +438,16 @@ class _LessonScreenState extends State<LessonScreen> {
     FocusScope.of(context).unfocus();
     // reset UI/session state so new topic is clear
     try { await context.read<SpeechService>().stopSpeaking(); } catch (_) {}
-    if (mounted) setState(() => _isSpeaking = false);
+    if (mounted) setState(() {
+      _isSpeaking = false;
+      // 주제 변경 시 캐시 초기화
+      _cachedDetailedExplanation = null;
+      _cachedTopic = null;
+      _cachedDifficulty = null;
+      _cachedEvaluationExplanation = null;
+      _cachedEvaluationTopic = null;
+      _cachedEvaluationDifficulty = null;
+    });
     _explanationController.clear();
     session.reset();
     await session.startLesson(
@@ -637,22 +690,30 @@ class _LessonScreenState extends State<LessonScreen> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final explanation = session.conceptExplanation ?? '';
+    final currentTopic = session.topic ?? session.selectedConcept?.name ?? '';
+    
+    // 캐시 확인: 동일 주제+난이도면 캐시된 상세 설명 재사용
+    final bool useCached = _cachedTopic == currentTopic && 
+                           _cachedDifficulty == _aiDifficulty && 
+                           _cachedDetailedExplanation != null &&
+                           _cachedDetailedExplanation!.isNotEmpty;
+    
     // 초기 내용: 기존 설명 일부만 바로 표시
     String base = explanation;
     if (base.length > 600) base = '${base.substring(0, 600)}…';
     base = cleanMathForDisplay(base);
 
     if (!mounted) return;
-    String displayed = base;
-    bool loading = true;
+    String displayed = useCached ? _cachedDetailedExplanation! : base;
+    bool loading = !useCached;
     bool startedFetch = false;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setState) {
-          // 한번만 비동기 보충 설명 요청
-          if (!startedFetch) {
+          // 캐시가 없을 때만 비동기 보충 설명 요청
+          if (!startedFetch && !useCached) {
             startedFetch = true;
             () async {
               try {
@@ -673,10 +734,15 @@ class _LessonScreenState extends State<LessonScreen> {
                 );
                 if (!ctx.mounted) return;
                 if (supplement.trim().isNotEmpty) {
+                  final fullDetail = '$base\n\n${cleanMathForDisplay(supplement)}';
                   setState(() {
-                    displayed = '$displayed\n\n${cleanMathForDisplay(supplement)}';
+                    displayed = fullDetail;
                     loading = false;
                   });
+                  // 캐시에 저장
+                  _cachedDetailedExplanation = fullDetail;
+                  _cachedTopic = currentTopic;
+                  _cachedDifficulty = _aiDifficulty;
                   // 상세 내용을 세션에 저장하여, 저장 시에만 영구 보관되도록 함
                   try {
                     context.read<LessonSessionProvider>().setDetailedExplanation(displayed);

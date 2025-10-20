@@ -41,6 +41,8 @@ class LessonSessionProvider extends ChangeNotifier {
   ConceptBreakdown? _selectedConcept;
   bool _isAnalyzingConcepts = false;
   String? _pendingConceptProblem;
+  String? _learnerExplanation;
+  String? _detailedExplanation;
 
   LessonStage get stage => _stage;
   String? get topic => _topic;
@@ -54,6 +56,8 @@ class LessonSessionProvider extends ChangeNotifier {
   ConceptBreakdown? get selectedConcept => _selectedConcept;
   List<ConceptBreakdown> get conceptBreakdown =>
       List.unmodifiable(_conceptBreakdown);
+  String? get learnerExplanation => _learnerExplanation;
+  String? get detailedExplanation => _detailedExplanation;
 
   bool get canStart =>
       _stage == LessonStage.idle || _stage == LessonStage.completed;
@@ -78,6 +82,8 @@ class LessonSessionProvider extends ChangeNotifier {
     _selectedConcept = null;
     _isAnalyzingConcepts = false;
     _pendingConceptProblem = null;
+  _learnerExplanation = null;
+  _detailedExplanation = null;
     notifyListeners();
 
     try {
@@ -157,12 +163,29 @@ class LessonSessionProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final score = await _aiContentService.evaluateUnderstanding(
-        topic: _topic!,
-        expectedConcept: _conceptExplanation!,
-        learnerExplanation: learnerExplanation,
-      );
+      // Preferred: conceptual evaluation via OpenAI
+      int? score;
+      try {
+        score = await _aiContentService.evaluateUnderstanding(
+          topic: _topic!,
+          expectedConcept: _detectedConcept ?? (_conceptBreakdown.isNotEmpty ? _conceptBreakdown.first.name : ''),
+          learnerExplanation: learnerExplanation,
+        );
+      } catch (_) {
+        score = null;
+      }
+
+      if (score == null) {
+        // Heuristic conceptual fallback
+        score = _aiContentService.heuristicScoreConceptual(
+          learnerExplanation,
+          topic: _topic!,
+          expectedConcept: _detectedConcept,
+        );
+      }
+
       _initialScore = score;
+      _learnerExplanation = learnerExplanation;
       _aiFeedback = _buildFeedback(score);
       _stage = LessonStage.awaitingEvaluation;
     } catch (error, stackTrace) {
@@ -175,11 +198,13 @@ class LessonSessionProvider extends ChangeNotifier {
   }
 
   Future<void> commitLesson() async {
-    if (_topic == null || _initialScore == null || !_authProvider.isSignedIn) {
+    if (_topic == null || !_authProvider.isSignedIn) {
       return;
     }
 
     try {
+      // '더 자세히 보기'를 누르지 않은 경우 detailedExplanation을 null로 저장
+      final shouldSaveDetailed = _detailedExplanation != null && _detailedExplanation!.trim().isNotEmpty;
       final history = LessonHistory(
         id: const Uuid().v4(),
         userId: _authProvider.currentUser!.id,
@@ -190,6 +215,11 @@ class LessonSessionProvider extends ChangeNotifier {
         retentionScore: null,
         detectedConcept: _detectedConcept,
         conceptExplanation: _conceptExplanation,
+        conceptKeywords:
+            _conceptBreakdown.map((e) => e.name).where((e) => e.trim().isNotEmpty).toList(),
+        learnerExplanation: _learnerExplanation,
+        lastEvaluatedAt: _initialScore != null ? DateTime.now() : null,
+        detailedExplanation: shouldSaveDetailed ? _detailedExplanation : null,
       );
 
       await _historyService.save(history);
@@ -200,6 +230,11 @@ class LessonSessionProvider extends ChangeNotifier {
       _stage = LessonStage.error;
     }
 
+    notifyListeners();
+  }
+
+  void setDetailedExplanation(String text) {
+    _detailedExplanation = text;
     notifyListeners();
   }
 

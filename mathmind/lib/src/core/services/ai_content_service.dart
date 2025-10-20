@@ -26,14 +26,7 @@ class AiContentService {
     required String learnerName,
     bool includeVisualPrompt = false,
   }) async {
-    final prompt =
-        '수학 개념 "$topic"을(를) 난이도 $difficulty 단계에 맞춰 설명해 주세요. '
-        '난이도 0은 아주 쉬운 설명(초등 저학년 수준, 그림/비유/일상 예시 위주), 난이도 9는 고급 설명(수식, 정의, 증명, 심화 개념 포함)입니다. '
-        '난이도가 높아질수록 더 전문적이고 깊이 있게, 낮을수록 더 쉽고 직관적으로 설명해 주세요. '
-        '친근한 말투와 짧은 문단을 사용하고, 아래 구조를 따라 작성해 주세요:\n'
-        '1) 핵심 아이디어 한 문단\n'
-        '2) 예시 또는 직관적 설명 한 문단\n'
-        '3) 따라 해 볼 간단한 연습 문제(정답 포함)';
+    // Removed unused prompt variable
 
     final client = _clientOrNull;
     if (client == null) {
@@ -53,13 +46,12 @@ class AiContentService {
             ),
             ChatCompletionMessage.user(
               content: ChatCompletionUserMessageContent.string(
-                '$prompt 학습자의 이름은 $learnerName 입니다.',
+                '수학 개념 "$topic"을(를) 난이도 $difficulty 단계에 맞춰 설명해 주세요. 학습자 이름: $learnerName',
               ),
             ),
           ],
         ),
       );
-
       final message = response.choices.first.message;
       final output = message.maybeMap(
         assistant: (assistant) => assistant.content,
@@ -161,14 +153,44 @@ class AiContentService {
     }
   }
 
+  // Return only the total score (for existing call sites)
   Future<int> evaluateUnderstanding({
     required String topic,
     required String expectedConcept,
     required String learnerExplanation,
+    int? difficulty,
+  }) async {
+    final result = await evaluateUnderstandingDetailed(
+      topic: topic,
+      expectedConcept: expectedConcept,
+      learnerExplanation: learnerExplanation,
+      difficulty: difficulty,
+    );
+    return result.score;
+  }
+
+  // New detailed conceptual evaluation (score + 3 sub-scores + feedback)
+  Future<ConceptualEvaluation> evaluateUnderstandingDetailed({
+    required String topic,
+    required String expectedConcept,
+    required String learnerExplanation,
+    int? difficulty,
   }) async {
     final client = _clientOrNull;
     if (client == null) {
-      return _heuristicScore(learnerExplanation);
+      final h = _heuristicConceptualComponents(
+        learnerExplanation,
+        topic: topic,
+        expectedConcept: expectedConcept,
+      );
+      final weighted = _weightedTotal(h.recall, h.application, h.integration, difficulty: difficulty);
+      return ConceptualEvaluation(
+        score: weighted,
+        recall: h.recall,
+        application: h.application,
+        integration: h.integration,
+        feedback: _fallbackConceptualFeedback(h.recall, h.application, h.integration),
+      );
     }
 
     try {
@@ -177,23 +199,31 @@ class AiContentService {
           model: ChatCompletionModel.modelId('gpt-4o-mini'),
           responseFormat: const ResponseFormat.jsonSchema(
             jsonSchema: JsonSchemaObject(
-              name: 'understanding',
+              name: 'conceptual_understanding',
               schema: {
                 'type': 'object',
                 'properties': {
                   'score': {'type': 'integer', 'minimum': 0, 'maximum': 100},
                   'feedback': {'type': 'string'},
+                  'recall': {'type': 'integer', 'minimum': 0, 'maximum': 100},
+                  'application': {'type': 'integer', 'minimum': 0, 'maximum': 100},
+                  'integration': {'type': 'integer', 'minimum': 0, 'maximum': 100},
                 },
-                'required': ['score', 'feedback'],
+                'required': ['score', 'feedback', 'recall', 'application', 'integration'],
               },
             ),
           ),
           messages: [
             ChatCompletionMessage.system(
               content:
-                  '당신은 학생이 수학 주제를 얼마나 이해했는지 평가합니다. '
-                  'score(0-100)와 feedback 필드를 포함한 JSON만 반환하세요. '
-                  'feedback은 한국어로 짧고 친근하게 작성하세요.',
+                  '당신은 학생의 개념적 이해도를 평가합니다. '
+                  '다음 세 기준에 따라 점수를 주세요: \n'
+                  '① 개념 인식(Recall): 핵심 개념/정의/용어를 올바르게 언급했는가?\n'
+                  '② 개념 적용(Application): 문제 해결/절차/공식 사용을 설명했는가?\n'
+                  '③ 개념 연결(Integration): 개념 간 관계/이유/조건을 스스로 정리했는가?\n'
+                  '각 항목은 0~100점, 총합 score는 이들의 가중 평균(각 1/3) 또는 합리적인 판단으로 산정하세요.\n'
+                  'feedback은 한국어로 짧고 친근하게 작성하고, 부족한 부분에 대한 한 줄 개선 포인트를 포함하세요.\n'
+                  '반드시 JSON만 반환하세요.',
             ),
             ChatCompletionMessage.user(
               content: ChatCompletionUserMessageContent.string(
@@ -210,15 +240,72 @@ class AiContentService {
       );
 
       if (payload.isEmpty) {
-        return _heuristicScore(learnerExplanation);
+        final h = _heuristicConceptualComponents(
+          learnerExplanation,
+          topic: topic,
+          expectedConcept: expectedConcept,
+        );
+        final weighted = _weightedTotal(h.recall, h.application, h.integration, difficulty: difficulty);
+        return ConceptualEvaluation(
+          score: weighted,
+          recall: h.recall,
+          application: h.application,
+          integration: h.integration,
+          feedback: _fallbackConceptualFeedback(h.recall, h.application, h.integration),
+        );
       }
 
       final decoded = jsonDecode(payload) as Map<String, dynamic>;
-      return (decoded['score'] as num?)?.clamp(0, 100).round() ??
-          _heuristicScore(learnerExplanation);
+      final score = (decoded['score'] as num?)?.clamp(0, 100).round();
+      final recall = (decoded['recall'] as num?)?.clamp(0, 100).round();
+      final application = (decoded['application'] as num?)?.clamp(0, 100).round();
+      final integration = (decoded['integration'] as num?)?.clamp(0, 100).round();
+      final feedback = (decoded['feedback'] as String?)?.trim();
+      if ([score, recall, application, integration].any((e) => e == null)) {
+        final h = _heuristicConceptualComponents(
+          learnerExplanation,
+          topic: topic,
+          expectedConcept: expectedConcept,
+        );
+        final weighted = _weightedTotal(
+          recall ?? h.recall,
+          application ?? h.application,
+          integration ?? h.integration,
+          difficulty: difficulty,
+        );
+        return ConceptualEvaluation(
+          score: weighted,
+          recall: recall ?? h.recall,
+          application: application ?? h.application,
+          integration: integration ?? h.integration,
+          feedback: feedback?.isNotEmpty == true ? feedback! : _fallbackConceptualFeedback(h.recall, h.application, h.integration),
+        );
+      }
+      final weighted = _weightedTotal(recall!, application!, integration!, difficulty: difficulty);
+      return ConceptualEvaluation(
+        score: weighted,
+        recall: recall,
+        application: application,
+        integration: integration,
+        feedback: (feedback != null && feedback.isNotEmpty)
+            ? feedback
+    : _fallbackConceptualFeedback(recall, application, integration),
+      );
     } catch (error, stackTrace) {
       debugPrint('OpenAI evaluation failed: $error\n$stackTrace');
-      return _heuristicScore(learnerExplanation);
+      final h = _heuristicConceptualComponents(
+        learnerExplanation,
+        topic: topic,
+        expectedConcept: expectedConcept,
+      );
+      final weighted = _weightedTotal(h.recall, h.application, h.integration, difficulty: difficulty);
+      return ConceptualEvaluation(
+        score: weighted,
+        recall: h.recall,
+        application: h.application,
+        integration: h.integration,
+        feedback: _fallbackConceptualFeedback(h.recall, h.application, h.integration),
+      );
     }
   }
 
@@ -445,13 +532,134 @@ class AiContentService {
     return [ConceptBreakdown(name: concept, summary: summary)];
   }
 
-  int _heuristicScore(String learnerExplanation) {
+  int heuristicScore(
+    String learnerExplanation, {
+    List<String>? requiredConcepts,
+  }) {
     if (learnerExplanation.trim().isEmpty) {
       return 0;
     }
     final lengthScore = min(learnerExplanation.length, 400) / 4;
-    return lengthScore.round().clamp(30, 85);
+    int score = lengthScore.round().clamp(30, 85);
+    // If required concepts are present in the explanation, boost score
+    if (requiredConcepts != null && requiredConcepts.isNotEmpty) {
+      int found = 0;
+      final lower = learnerExplanation.toLowerCase();
+      for (final concept in requiredConcepts) {
+        if (lower.contains(concept.toLowerCase())) {
+          found++;
+        }
+      }
+      // If all required concepts are mentioned, boost to 90+
+      if (found == requiredConcepts.length) {
+        score = max(score, 90);
+      } else if (found > 0) {
+        score = max(score, 75);
+      }
+    }
+    return score;
   }
+
+  // Heuristic conceptual scoring aligned with recall/application/integration
+  int heuristicScoreConceptual(
+    String learnerExplanation, {
+    String? topic,
+    String? expectedConcept,
+  }) {
+    final h = _heuristicConceptualComponents(
+      learnerExplanation,
+      topic: topic,
+      expectedConcept: expectedConcept,
+    );
+    return h.total;
+  }
+
+  _ConceptualHeuristic _heuristicConceptualComponents(
+    String learnerExplanation, {
+    String? topic,
+    String? expectedConcept,
+  }) {
+    if (learnerExplanation.trim().isEmpty) {
+      return const _ConceptualHeuristic(recall: 0, application: 0, integration: 0, total: 0);
+    }
+    final text = learnerExplanation.toLowerCase();
+
+    final recallTerms = <String>{};
+    if (topic != null) recallTerms.addAll(topic.toLowerCase().split(RegExp(r'[^a-z0-9가-힣]+')).where((e) => e.length >= 2));
+    if (expectedConcept != null) recallTerms.addAll(expectedConcept.toLowerCase().split(RegExp(r'[^a-z0-9가-힣]+')).where((e) => e.length >= 2));
+    recallTerms.addAll(['정의','공식','법칙','정리','개념','조건']);
+    final recallHits = recallTerms.where((w) => text.contains(w)).length;
+    final recall = (recallHits >= 3) ? 85 : (recallHits == 2 ? 70 : (recallHits == 1 ? 55 : 35));
+
+    final hasStepMarkers = RegExp(r'(첫째|둘째|셋째|먼저|다음|그리고|마지막|1\)|2\)|3\))').hasMatch(learnerExplanation);
+    final hasEquation = RegExp(r'[=><]|\\[a-zA-Z]+|\d+\s*[a-zA-Z]').hasMatch(learnerExplanation);
+    final hasProcedureVerb = RegExp(r'(대입|정리|계산|유도|변형|미분|적분|대수|대칭|치환|전개|인수분해)').hasMatch(learnerExplanation);
+    final appScore = [hasStepMarkers, hasEquation, hasProcedureVerb].where((e) => e).length;
+    final application = appScore == 3 ? 90 : appScore == 2 ? 75 : appScore == 1 ? 60 : 35;
+
+    final hasRelation = RegExp(r'(따라서|그러므로|왜냐하면|때문에|즉|그래서|연결|관계|비례|반비례|동치|충분조건|필요조건)').hasMatch(learnerExplanation);
+    final mentionsTwoConcepts = RegExp(r'(\w+)\s*(과|와|및)\s*(\w+)').hasMatch(learnerExplanation);
+    final integration = (hasRelation && mentionsTwoConcepts) ? 85 : (hasRelation || mentionsTwoConcepts) ? 70 : 40;
+
+    final total = ((recall + application + integration) / 3).round().clamp(0, 100);
+    return _ConceptualHeuristic(recall: recall, application: application, integration: integration, total: total);
+  }
+
+  int _weightedTotal(int recall, int application, int integration, {int? difficulty}) {
+    if (difficulty == null) {
+      return ((recall + application + integration) / 3).round().clamp(0, 100);
+    }
+    final d = difficulty.clamp(0, 9);
+    final t = d / 9.0; // 0(쉬움) -> 1(어려움)
+    final wRecall = 0.5 - 0.3 * t;      // 0.5 -> 0.2
+    final wIntegration = 0.2 + 0.3 * t; // 0.2 -> 0.5
+    final wApplication = 1.0 - wRecall - wIntegration; // ~0.3 유지
+    final total = (recall * wRecall + application * wApplication + integration * wIntegration).round();
+    return total.clamp(0, 100);
+  }
+
+  String _fallbackConceptualFeedback(int recall, int application, int integration) {
+    String weakest;
+    final minVal = [recall, application, integration].reduce((a, b) => a < b ? a : b);
+    if (minVal == recall) {
+      weakest = '개념 인식(정의/핵심 용어)';
+    } else if (minVal == application) {
+      weakest = '개념 적용(절차/공식 사용)';
+    } else {
+      weakest = '개념 연결(이유/관계 설명)';
+    }
+    return '잘하고 있어요! 특히 "$weakest" 부분을 한 줄로 정리해 보면 더 좋아요.';
+  }
+}
+
+class ConceptualEvaluation {
+  const ConceptualEvaluation({
+    required this.score,
+    required this.recall,
+    required this.application,
+    required this.integration,
+    required this.feedback,
+  });
+
+  final int score; // 0-100
+  final int recall; // 0-100
+  final int application; // 0-100
+  final int integration; // 0-100
+  final String feedback;
+}
+
+class _ConceptualHeuristic {
+  const _ConceptualHeuristic({
+    required this.recall,
+    required this.application,
+    required this.integration,
+    required this.total,
+  });
+
+  final int recall;
+  final int application;
+  final int integration;
+  final int total;
 }
 
 class ConceptBreakdown {

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../features/auth/presentation/auth_screen.dart';
 import '../features/dashboard/presentation/dashboard_shell.dart';
 import '../features/home/presentation/home_screen.dart';
-import '../features/lessons/presentation/lesson_screen.dart';
+import '../features/lessons/presentation/lesson_screen_clean.dart';
 import '../features/retention/presentation/retention_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 

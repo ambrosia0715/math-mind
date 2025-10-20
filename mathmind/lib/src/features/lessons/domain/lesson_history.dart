@@ -11,6 +11,12 @@ class LessonHistory {
     required this.retentionScore,
     required this.detectedConcept,
     this.conceptExplanation,
+    this.conceptKeywords,
+    this.learnerExplanation,
+    this.lastEvaluatedAt,
+    this.detailedExplanation,
+    this.lastRetentionScore,
+    this.lastRetentionEvaluatedAt,
   });
 
   factory LessonHistory.fromFirestore(
@@ -27,6 +33,15 @@ class LessonHistory {
       retentionScore: data['retention_score'] as int?,
       detectedConcept: data['detected_concept'] as String?,
       conceptExplanation: data['concept_explanation'] as String?,
+      conceptKeywords: (data['concept_keywords'] as List?)
+          ?.whereType<String>()
+          .toList(),
+      learnerExplanation: data['learner_explanation'] as String?,
+      lastEvaluatedAt: (data['last_evaluated_at'] as Timestamp?)?.toDate(),
+      detailedExplanation: data['detailed_explanation'] as String?,
+      lastRetentionScore: data['last_retention_score'] as int?,
+      lastRetentionEvaluatedAt:
+          (data['last_retention_evaluated_at'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -39,6 +54,12 @@ class LessonHistory {
   final int? retentionScore;
   final String? detectedConcept;
   final String? conceptExplanation;
+  final List<String>? conceptKeywords;
+  final String? learnerExplanation;
+  final DateTime? lastEvaluatedAt;
+  final String? detailedExplanation;
+  final int? lastRetentionScore;
+  final DateTime? lastRetentionEvaluatedAt;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -50,6 +71,15 @@ class LessonHistory {
       'retention_score': retentionScore,
       'detected_concept': detectedConcept,
       'concept_explanation': conceptExplanation,
+      'concept_keywords': conceptKeywords,
+      'learner_explanation': learnerExplanation,
+      'last_evaluated_at':
+          lastEvaluatedAt != null ? Timestamp.fromDate(lastEvaluatedAt!) : null,
+    'detailed_explanation': detailedExplanation,
+    'last_retention_score': lastRetentionScore,
+    'last_retention_evaluated_at': lastRetentionEvaluatedAt != null
+      ? Timestamp.fromDate(lastRetentionEvaluatedAt!)
+      : null,
     }..removeWhere((_, value) => value == null);
   }
 
@@ -63,6 +93,12 @@ class LessonHistory {
     int? retentionScore,
     String? detectedConcept,
     String? conceptExplanation,
+    List<String>? conceptKeywords,
+    String? learnerExplanation,
+    DateTime? lastEvaluatedAt,
+    String? detailedExplanation,
+    int? lastRetentionScore,
+    DateTime? lastRetentionEvaluatedAt,
   }) {
     return LessonHistory(
       id: id ?? this.id,
@@ -74,6 +110,13 @@ class LessonHistory {
       retentionScore: retentionScore ?? this.retentionScore,
       detectedConcept: detectedConcept ?? this.detectedConcept,
       conceptExplanation: conceptExplanation ?? this.conceptExplanation,
+      conceptKeywords: conceptKeywords ?? this.conceptKeywords,
+      learnerExplanation: learnerExplanation ?? this.learnerExplanation,
+      lastEvaluatedAt: lastEvaluatedAt ?? this.lastEvaluatedAt,
+      detailedExplanation: detailedExplanation ?? this.detailedExplanation,
+      lastRetentionScore: lastRetentionScore ?? this.lastRetentionScore,
+      lastRetentionEvaluatedAt:
+          lastRetentionEvaluatedAt ?? this.lastRetentionEvaluatedAt,
     );
   }
 }

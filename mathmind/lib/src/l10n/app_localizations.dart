@@ -39,6 +39,13 @@ class AppLocalizations {
       : 'Free plan includes 100 AI questions per day with text explanations.';
   String get homeQuestionsLeft => _isKorean ? '남은 질문 수' : 'Questions left';
   String get homeRetentionDue => _isKorean ? '복습 예정 수' : 'Retention due';
+    String homeRetentionSummary(String total, String progressed, String pending) =>
+            _isKorean
+                    ? '총 ${total}건 · 진행 ${progressed}건 · 미진행 ${pending}건'
+                    : 'Total ${total} · progressed ${progressed} · pending ${pending}';
+  String get homeViewPendingReviews => _isKorean ? '미진행만 보기' : 'View pending only';
+  String get homeViewProgressedReviews =>
+      _isKorean ? '진행한 것만 보기' : 'View progressed only';
   String get homeDailyLimitLoading =>
       _isKorean ? '남은 질문 수를 불러오는 중이에요...' : 'Loading...';
   String get homeStartAdaptiveLesson =>
@@ -121,9 +128,12 @@ class AppLocalizations {
       _isKorean ? '설명을 말해 주세요' : 'Speak explanation';
   String get lessonStopSpeaking => _isKorean ? '음성 중지' : 'Stop speaking';
   String get lessonExplanationTitle =>
-      _isKorean ? 'MathMind 설명' : 'MathMind explanation';
+      _isKorean ? '접근 개념' : 'Approach concepts';
   String get lessonShowMoreDetail =>
       _isKorean ? '더 자세히 보기' : 'View detailed explanation';
+  String get detailsDailyLimitReached => _isKorean
+      ? '오늘의 자세히 보기 제한에 도달했어요.'
+      : 'Daily details limit reached.';
   String get lessonShowUnderstandingButton =>
       _isKorean ? '이해했는지 확인해 보기' : 'Check my understanding';
   String get lessonShowExplanationAgain =>
@@ -156,10 +166,7 @@ class AppLocalizations {
       : 'This lesson explanation is not available yet.';
   String reviewInitialScore(String score) =>
       _isKorean ? '처음 점수: $score' : 'Initial score: $score';
-  String reviewRetentionScore(String score) =>
-      _isKorean ? '복습 점수: $score' : 'Retention score: $score';
-  String get reviewRetentionPending =>
-      _isKorean ? '아직 기록되지 않았어요.' : 'Not recorded yet.';
+  // (Retention score removed)
   String get reviewRegenerating =>
       _isKorean ? '설명을 다시 불러오는 중이에요...' : 'Generating a new explanation...';
   String get reviewRegenerateButton =>
@@ -168,7 +175,7 @@ class AppLocalizations {
       ? '설명을 다시 만들지 못했어요. 잠시 후 다시 시도해 주세요.'
       : 'We could not regenerate the explanation. Please try again later.';
   // Retention
-  String get retentionAppBarTitle => _isKorean ? '복습 관리' : 'Retention review';
+    String get retentionAppBarTitle => _isKorean ? '복습 관리' : 'Retention review';
   String get retentionEmptyMessage => _isKorean
       ? '오늘 복습할 내용이 없어요. 계속 학습해 보세요!'
       : 'No reviews due today. Keep learning!';
@@ -177,14 +184,8 @@ class AppLocalizations {
   String get retentionOpenLesson => _isKorean ? '내용 다시 보기' : 'View lesson';
   String retentionConcept(String concept) =>
       _isKorean ? '개념: $concept' : 'Concept: $concept';
-  String get retentionScoreLabel =>
-      _isKorean ? '복습 점수 (0 - 100)' : 'Retention score (0 - 100)';
-  String get retentionScoreError => _isKorean
-      ? '0에서 100 사이의 점수를 입력해 주세요.'
-      : 'Enter a score between 0 and 100.';
-  String get retentionSaving => _isKorean ? '저장 중...' : 'Saving...';
-  String get retentionSaveButton =>
-      _isKorean ? '복습 점수 저장' : 'Save retention score';
+  // Home retention pending label
+  String get homeRetentionPending => _isKorean ? '복습 미진행' : 'Reviews pending';
 
   // Profile
   String get profileAppBarTitle =>

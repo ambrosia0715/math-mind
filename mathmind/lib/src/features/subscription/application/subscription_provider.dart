@@ -6,6 +6,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../../core/services/daily_limit_storage.dart';
 import '../../../core/services/subscription_service.dart';
+import '../../../core/services/details_limit_storage.dart';
 import '../domain/subscription_plan.dart';
 
 class SubscriptionProvider extends ChangeNotifier {
@@ -13,18 +14,23 @@ class SubscriptionProvider extends ChangeNotifier {
     required SubscriptionService service,
     required DailyLimitStorage dailyLimitStorage,
     required AuthProvider authProvider,
+    required DetailsLimitStorage detailsLimitStorage,
   })  : _service = service,
         _dailyLimitStorage = dailyLimitStorage,
+        _detailsLimitStorage = detailsLimitStorage,
         _authProvider = authProvider {
     _authProvider.addListener(_handleAuthChange);
     _handleAuthChange();
     unawaited(_initializeDailyLimitState());
+    unawaited(_initializeDetailsLimitState());
   }
 
-  static const int _freeDailyLimit = 5;
+  static const int _freeDailyLimit = 3;
+  static const int _freeDetailsLimit = 5;
 
   final SubscriptionService _service;
   final DailyLimitStorage _dailyLimitStorage;
+  final DetailsLimitStorage _detailsLimitStorage;
   final AuthProvider _authProvider;
 
   SubscriptionTier _baseTier = SubscriptionTier.free;
@@ -33,6 +39,11 @@ class SubscriptionProvider extends ChangeNotifier {
   DateTime? _lastQuestionDate;
   bool _dailyStateInitialized = false;
   bool _forcePremium = false;
+
+  // Details ("더 자세히 보기") daily counter
+  int _detailsOpenedToday = 0;
+  DateTime? _lastDetailsDate;
+  bool _detailsStateInitialized = false;
 
   SubscriptionTier get activeTier =>
       _forcePremium ? SubscriptionTier.premium : _baseTier;
@@ -52,6 +63,14 @@ class SubscriptionProvider extends ChangeNotifier {
     }
     return (_freeDailyLimit - _questionsAskedToday)
         .clamp(0, _freeDailyLimit)
+        .toInt();
+  }
+
+  int? get remainingDailyDetails {
+    if (activeTier != SubscriptionTier.free) return null;
+    if (!_detailsStateInitialized) return null;
+    return (_freeDetailsLimit - _detailsOpenedToday)
+        .clamp(0, _freeDetailsLimit)
         .toInt();
   }
 
@@ -88,6 +107,13 @@ class SubscriptionProvider extends ChangeNotifier {
     return true;
   }
 
+  bool canOpenDetails() {
+    if (activeTier != SubscriptionTier.free) return true;
+    if (!_detailsStateInitialized) return false;
+    _resetDetailsCounterIfNeeded();
+    return (remainingDailyDetails ?? 0) > 0;
+  }
+
   void registerQuestionAsked() {
     if (activeTier != SubscriptionTier.free) {
       return;
@@ -99,6 +125,16 @@ class SubscriptionProvider extends ChangeNotifier {
     _questionsAskedToday += 1;
     _lastQuestionDate = DateTime.now();
     unawaited(_persistDailyState());
+    notifyListeners();
+  }
+
+  void registerDetailsOpened() {
+    if (activeTier != SubscriptionTier.free) return;
+    if (!_detailsStateInitialized) return;
+    _resetDetailsCounterIfNeeded();
+    _detailsOpenedToday += 1;
+    _lastDetailsDate = DateTime.now();
+    unawaited(_persistDetailsState());
     notifyListeners();
   }
 
@@ -144,6 +180,31 @@ class SubscriptionProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _initializeDetailsLimitState() async {
+    try {
+      final snapshot = await _detailsLimitStorage.load();
+      if (snapshot != null) {
+        _detailsOpenedToday = snapshot.detailsOpened;
+        _lastDetailsDate = snapshot.date;
+        final wasReset = _resetDetailsCounterIfNeeded(persistOnReset: false);
+        if (wasReset) {
+          await _persistDetailsState();
+        }
+      } else {
+        _detailsOpenedToday = 0;
+        _lastDetailsDate = DateTime.now();
+        await _persistDetailsState();
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load details limit: $error\n$stackTrace');
+      _detailsOpenedToday = 0;
+      _lastDetailsDate = DateTime.now();
+    } finally {
+      _detailsStateInitialized = true;
+      notifyListeners();
+    }
+  }
+
   bool _resetDailyCounterIfNeeded({bool persistOnReset = true}) {
     final now = DateTime.now();
     if (_lastQuestionDate == null ||
@@ -158,10 +219,31 @@ class SubscriptionProvider extends ChangeNotifier {
     return false;
   }
 
+  bool _resetDetailsCounterIfNeeded({bool persistOnReset = true}) {
+    final now = DateTime.now();
+    if (_lastDetailsDate == null || !_isSameDay(now, _lastDetailsDate!)) {
+      _detailsOpenedToday = 0;
+      _lastDetailsDate = now;
+      if (persistOnReset) {
+        unawaited(_persistDetailsState());
+      }
+      return true;
+    }
+    return false;
+  }
+
   Future<void> _persistDailyState() async {
     final dateToSave = _lastQuestionDate ?? DateTime.now();
     await _dailyLimitStorage.save(
       questionsAsked: _questionsAskedToday,
+      date: dateToSave,
+    );
+  }
+
+  Future<void> _persistDetailsState() async {
+    final dateToSave = _lastDetailsDate ?? DateTime.now();
+    await _detailsLimitStorage.save(
+      detailsOpened: _detailsOpenedToday,
       date: dateToSave,
     );
   }

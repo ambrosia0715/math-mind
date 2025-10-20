@@ -6,15 +6,29 @@ import '../../lessons/presentation/lesson_review_screen.dart';
 import '../application/retention_provider.dart';
 import '../../../l10n/app_localizations.dart';
 
+enum RetentionFilter { all, pendingOnly, progressedOnly }
+
 class RetentionScreen extends StatelessWidget {
-  const RetentionScreen({super.key});
+  const RetentionScreen({super.key, this.filter = RetentionFilter.all});
 
   static const routeName = '/retention';
+  final RetentionFilter filter;
 
   @override
   Widget build(BuildContext context) {
     final retention = context.watch<RetentionProvider>();
-    final lessons = retention.dueLessons;
+    // Apply filter based on lastRetentionScore threshold (>= 30 is progressed)
+    final all = retention.dueLessons;
+    final lessons = () {
+      switch (filter) {
+        case RetentionFilter.pendingOnly:
+          return all.where((l) => (l.lastRetentionScore ?? -1) < 30).toList();
+        case RetentionFilter.progressedOnly:
+          return all.where((l) => (l.lastRetentionScore ?? -1) >= 30).toList();
+        case RetentionFilter.all:
+          return all;
+      }
+    }();
     final l10n = context.l10n;
 
     return Scaffold(
@@ -48,22 +62,7 @@ class _RetentionTaskCard extends StatefulWidget {
 }
 
 class _RetentionTaskCardState extends State<_RetentionTaskCard> {
-  late final TextEditingController _controller;
-  bool _submitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.lesson.retentionScore?.toString() ?? '',
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  _RetentionTaskCardState();
 
   @override
   Widget build(BuildContext context) {
@@ -95,49 +94,28 @@ class _RetentionTaskCardState extends State<_RetentionTaskCard> {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => LessonReviewScreen(lesson: widget.lesson),
+                    builder: (_) => LessonReviewScreen(
+                      lesson: widget.lesson,
+                      startWithBlankExplanation: true,
+                    ),
                   ),
                 );
               },
               icon: const Icon(Icons.visibility_outlined),
               label: Text(l10n.retentionOpenLesson),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _controller,
-              decoration: InputDecoration(labelText: l10n.retentionScoreLabel),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: _submitting
-                    ? null
-                    : () async {
-                        final raw = int.tryParse(_controller.text);
-                        if (raw == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l10n.retentionScoreError)),
-                          );
-                          return;
-                        }
-                        setState(() => _submitting = true);
-                        await context
-                            .read<RetentionProvider>()
-                            .markRetentionComplete(
-                              widget.lesson,
-                              raw.clamp(0, 100),
-                            );
-                        if (mounted) {
-                          setState(() => _submitting = false);
-                        }
-                      },
-                child: Text(
-                  _submitting ? l10n.retentionSaving : l10n.retentionSaveButton,
+            const SizedBox(height: 8),
+            if (widget.lesson.initialScore != null)
+              Wrap(spacing: 8, children: [
+                Chip(
+                  label: Text(context.l10n
+                      .lessonUnderstandingLabel(widget.lesson.initialScore!.toString())),
+                  avatar: const Icon(Icons.assessment_outlined),
                 ),
-              ),
-            ),
+              ])
+            else
+              Text(context.l10n.homeRetentionPending,
+                  style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),

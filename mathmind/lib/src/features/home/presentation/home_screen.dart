@@ -4,9 +4,10 @@ import 'package:provider/provider.dart';
 import '../../../core/services/lesson_history_service.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../lessons/domain/lesson_history.dart';
-import '../../lessons/presentation/lesson_screen.dart';
+import '../../lessons/presentation/lesson_screen_clean.dart';
 import '../../lessons/presentation/lesson_review_screen.dart';
 import '../../retention/application/retention_provider.dart';
+import '../../retention/presentation/retention_screen.dart';
 import '../../subscription/application/subscription_provider.dart';
 import '../../subscription/domain/subscription_plan.dart';
 import '../../../l10n/app_localizations.dart';
@@ -35,7 +36,8 @@ class HomeScreen extends StatelessWidget {
           children: [
             _LearningOverview(
               subscription: subscription,
-              retentionCount: retention.dueLessons.length,
+              retentionTotal: retention.dueLessons.length,
+              retentionProgressed: retention.progressedCount,
             ),
             const SizedBox(height: 24),
             _ActionButtons(subscription: subscription),
@@ -51,11 +53,13 @@ class HomeScreen extends StatelessWidget {
 class _LearningOverview extends StatelessWidget {
   const _LearningOverview({
     required this.subscription,
-    required this.retentionCount,
+    required this.retentionTotal,
+    required this.retentionProgressed,
   });
 
   final SubscriptionProvider subscription;
-  final int retentionCount;
+  final int retentionTotal;
+  final int retentionProgressed;
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +70,12 @@ class _LearningOverview extends StatelessWidget {
     final remainingLabel = subscription.activeTier == SubscriptionTier.free
         ? (remaining != null ? '$remaining' : l10n.homeDailyLimitLoading)
         : l10n.generalUnlimited;
+    final pending = (retentionTotal - retentionProgressed).clamp(0, retentionTotal);
+    final retentionSummary = l10n.homeRetentionSummary(
+      retentionTotal.toString(),
+      retentionProgressed.toString(),
+      pending.toString(),
+    );
 
     return Card(
       child: Padding(
@@ -99,7 +109,33 @@ class _LearningOverview extends StatelessWidget {
                 _PillStatistic(
                   icon: Icons.timer_outlined,
                   label: l10n.homeRetentionDue,
-                  value: retentionCount.toString(),
+                  value: retentionSummary,
+                  trailingButtons: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const RetentionScreen(
+                              filter: RetentionFilter.pendingOnly,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Text(l10n.homeViewPendingReviews),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const RetentionScreen(
+                              filter: RetentionFilter.progressedOnly,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Text(l10n.homeViewProgressedReviews),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -115,11 +151,13 @@ class _PillStatistic extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.trailingButtons = const <Widget>[],
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final List<Widget> trailingButtons;
 
   @override
   Widget build(BuildContext context) {
@@ -149,6 +187,10 @@ class _PillStatistic extends StatelessWidget {
                   value,
                   style: theme.textTheme.titleMedium,
                 ),
+                if (trailingButtons.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, children: trailingButtons),
+                ],
               ],
             ),
           ],

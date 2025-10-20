@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'core/config/app_env.dart';
 import 'core/services/ai_content_service.dart';
 import 'core/services/daily_limit_storage.dart';
+import 'core/services/details_limit_storage.dart';
 import 'core/services/lesson_history_service.dart';
 import 'core/services/math_expression_service.dart';
 import 'core/services/speech_service.dart';
@@ -43,6 +44,7 @@ class MathMindApp extends StatelessWidget {
           },
         ),
         Provider(create: (_) => DailyLimitStorage()),
+  Provider(create: (_) => DetailsLimitStorage()),
         Provider(
           create: (context) =>
               RetentionService(context.read<LessonHistoryService>()),
@@ -52,6 +54,7 @@ class MathMindApp extends StatelessWidget {
           create: (context) => SubscriptionProvider(
             service: context.read<SubscriptionService>(),
             dailyLimitStorage: context.read<DailyLimitStorage>(),
+            detailsLimitStorage: context.read<DetailsLimitStorage>(),
             authProvider: context.read<AuthProvider>(),
           ),
         ),

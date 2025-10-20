@@ -245,6 +245,82 @@ String _cleanTextForDisplay(String text) {
   return cleaned;
 }
 
+// Known math concept keywords to detect in text/topics
+const List<String> _knownConceptKeywords = [
+  // Sequences & series
+  '등비수열', '등차수열', '수열', '수열의 합', '급수',
+  // Algebra
+  '방정식', '연립방정식', '이차방정식', '부등식', '식', '항등식', '다항식', '인수분해', '완전제곱식',
+  // Functions & graphs
+  '함수', '삼각함수', '지수함수', '로그함수', '그래프', '좌표', '기울기', '절편', '꼭짓점',
+  // Arithmetic & numbers
+  '분수', '소수', '정수', '자연수', '유리수', '무리수', '비율', '비례', '백분율',
+  // Geometry
+  '도형', '기하', '삼각형', '사각형', '원', '원의 넓이', '둘레', '피타고라스', '벡터', '행렬',
+  // Calculus
+  '미분', '적분', '극한',
+  // Probability & statistics
+  '확률', '통계', '평균', '중앙값', '최빈값', '표준편차',
+  // Trig details
+  '사인', '코사인', '탄젠트',
+  // Others
+  '로그', '지수', '집합',
+];
+
+bool _containsNumberOrOperator(String s) =>
+  RegExp(r'[0-9+\-*/×÷=^]').hasMatch(s);
+
+// Topic like just a keyword? If so, we can opt to hide suggestions block
+bool _isGenericConceptQuery(String? topic) {
+  final t = (topic ?? '').trim();
+  if (t.isEmpty) return false;
+  if (_containsNumberOrOperator(t)) return false; // it's a problem-like query
+  // Exact or close match to known keywords
+  if (_knownConceptKeywords.contains(t)) return true;
+  // Also treat short keyword-like topics as generic
+  if (t.length <= 6 && _knownConceptKeywords.any((k) => t == k || k.contains(t))) {
+    return true;
+  }
+  return false;
+}
+
+List<String> _extractConceptKeywordsFromText(String text) {
+  final lower = text.toLowerCase();
+  final results = <String>{};
+  for (final kw in _knownConceptKeywords) {
+    if (kw.isEmpty) continue;
+    // Check both original and lower-cased (mainly for English words)
+    if (text.contains(kw)) {
+      results.add(kw);
+      continue;
+    }
+    final kwLower = kw.toLowerCase();
+    if (lower.contains(kwLower)) {
+      results.add(kw);
+    }
+  }
+  return results.toList(growable: false);
+}
+
+List<String> _findRelatedConceptKeywords(LessonSessionProvider session) {
+  // Prefer AI-provided breakdowns when available
+  final fromBreakdown = session.conceptBreakdown
+      .map((c) => c.name.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
+  final set = <String>{...fromBreakdown};
+  if (set.isEmpty) {
+    final topic = session.topic ?? '';
+    final explanation = session.conceptExplanation ?? '';
+    final combined = '$topic\n$explanation';
+    set.addAll(_extractConceptKeywordsFromText(combined));
+  }
+  // Remove current topic if it matches exactly
+  final t = (session.topic ?? '').trim();
+  set.removeWhere((e) => e == t);
+  return set.take(8).toList(growable: false);
+}
+
 class LessonScreen extends StatefulWidget {
   const LessonScreen({super.key});
 
@@ -660,6 +736,47 @@ class _LessonScreenState extends State<LessonScreen> {
                         ),
                         const SizedBox(height: 8),
                       ],
+                      // Related concept keywords chips (tap to start a new lesson)
+                      if (!_isGenericConceptQuery(topic))
+                        Builder(
+                          builder: (context) {
+                            final keywords = _findRelatedConceptKeywords(session);
+                            if (keywords.isEmpty) return const SizedBox.shrink();
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '이 문제를 풀기 전에 알아두면 좋은 개념',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    for (final kw in keywords)
+                                      ActionChip(
+                                        label: Text('# $kw'),
+                                        onPressed: () async {
+                                          await speechService.stopSpeaking();
+                                          speechService.setCompletionHandler(null);
+                                          if (sheetContext.mounted) {
+                                            Navigator.of(sheetContext).pop();
+                                          }
+                                          if (context.mounted) {
+                                            await _startLessonWithTopic(context, session, kw);
+                                          }
+                                        },
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                            );
+                          },
+                        ),
                       Text(
                         _cleanTextForDisplay(description),
                         style: theme.textTheme.bodyMedium,
@@ -1267,6 +1384,49 @@ class _ExplanationCard extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
+            // Suggest related concept keywords at the top of the explanation
+            Builder(
+              builder: (ctx) {
+                final session = ctx.read<LessonSessionProvider>();
+                if (_isGenericConceptQuery(session.topic)) {
+                  return const SizedBox.shrink();
+                }
+                final keywords = _findRelatedConceptKeywords(session);
+                if (keywords.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '관련 개념으로 다시 배워 보기',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final kw in keywords)
+                          ActionChip(
+                            label: Text('# $kw'),
+                            onPressed: () async {
+                              // Start a new lesson focused on that concept
+                              final provider = ctx.read<LessonSessionProvider>();
+                              // Basic math-topic check already exists in _startLessonWithTopic
+                              final state = ctx.findAncestorStateOfType<_LessonScreenState>();
+                              if (state != null) {
+                                await state._startLessonWithTopic(ctx, provider, kw);
+                              }
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              },
+            ),
             Text(_cleanTextForDisplay(content)),
             if (onVisualPressed != null) ...[
               const SizedBox(height: 16),

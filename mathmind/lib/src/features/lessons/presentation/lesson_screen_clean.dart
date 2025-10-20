@@ -112,23 +112,28 @@ class _LessonScreenState extends State<LessonScreen> {
           _buildTopicCard(context, session),
           const SizedBox(height: 16),
           if (session?.conceptExplanation != null)
-            _ExplanationCard(
-              content: _explanationForMain(session!),
-              onListenToggle: () => _toggleSpeak(_explanationForMain(session!)),
-              isSpeaking: _isSpeaking,
-              onKeywordTap: (kw) => _showKeywordPreviewAndMaybeStart(context, session!, kw),
-              onDetailsPressed: () async {
-                final sub = context.read<SubscriptionProvider>();
-                if (!sub.canOpenDetails()) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(context.l10n.detailsDailyLimitReached)),
-                  );
-                  return;
-                }
-                sub.registerDetailsOpened();
-                await _showDetailsBottomSheet(context, session!);
-              },
-            ),
+            Builder(builder: (context) {
+              final info = _approachConceptInfo(session!);
+              return _ExplanationCard(
+                keywords: info.keywords,
+                formulas: info.formulas,
+                summary: info.summary,
+                onListenToggle: () => _toggleSpeak(info.summary),
+                isSpeaking: _isSpeaking,
+                onKeywordTap: (kw) => _showKeywordPreviewAndMaybeStart(context, session!, kw),
+                onDetailsPressed: () async {
+                  final sub = context.read<SubscriptionProvider>();
+                  if (!sub.canOpenDetails()) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(context.l10n.detailsDailyLimitReached)),
+                    );
+                    return;
+                  }
+                  sub.registerDetailsOpened();
+                  await _showDetailsBottomSheet(context, session!);
+                },
+              );
+            }),
           const SizedBox(height: 16),
           if (session?.conceptExplanation != null) _buildEvaluationCard(context, session!),
           const SizedBox(height: 16),
@@ -422,25 +427,21 @@ class _LessonScreenState extends State<LessonScreen> {
     await speech.speakWithAgeAppropriateVoice(content, _aiDifficulty);
   }
 
-  // Build main explanation depending on input type:
-  // - If user entered a problem (equation, question-like), show "접근 개념" 가이드 중심의 간단 설명.
-  // - If user entered a concept name, show a short concept overview.
-  String _explanationForMain(LessonSessionProvider session) {
+  /// 접근 개념 카드에 필요한 정보(키워드, 공식, 설명)를 모두 반환
+  ({List<String> keywords, List<String> formulas, String summary}) _approachConceptInfo(LessonSessionProvider session) {
     final raw = session.conceptExplanation ?? '';
     final text = cleanMathForDisplay(raw).trim();
     final topic = (session.topic ?? '').trim();
+    final concepts = session.conceptBreakdown.map((e) => e.name.trim()).where((e) => e.isNotEmpty).toList();
+    final topConcepts = concepts.take(3).toList();
+    final formulas = _extractFormulaHints(topic, text);
 
     bool looksLikeProblem() {
       final t = topic.toLowerCase();
-      if (RegExp(r'[=<>]|\\\w|\d+').hasMatch(t)) return true; // contains symbols/numbers/latex-ish
+      if (RegExp(r'[=<>]|\\w|\d+').hasMatch(t)) return true;
       if (t.contains('?') || t.contains('구하시오') || t.contains('문제')) return true;
       return false;
     }
-
-    // Extract detected approach concepts from breakdown
-    final concepts = session.conceptBreakdown.map((e) => e.name.trim()).where((e) => e.isNotEmpty).toList();
-    final topConcepts = concepts.take(3).toList();
-
     String concise(String s, {int lines = 5, int chars = 300}) {
       var out = s.trim();
       final ls = out.split('\n');
@@ -448,22 +449,19 @@ class _LessonScreenState extends State<LessonScreen> {
       if (out.length > chars) out = out.substring(0, chars) + '…';
       return out;
     }
-
+    String summary;
     if (looksLikeProblem()) {
       final header = topConcepts.isNotEmpty
-          ? '이 문제는 ${topConcepts.join(', ')} 개념으로 접근하는 게 좋아요.'
+          ? '이 문제는 ' + topConcepts.join(', ') + ' 개념으로 접근하는 게 좋아요.'
           : '이 문제에 적합한 개념을 먼저 파악해볼게요.';
-      final hints = _extractFormulaHints(topic, text);
-      final hintLine = hints.isNotEmpty ? '\n• 공식: ${hints.join(', ')}' : '';
-      // 메인 화면에서는 개념+핵심 공식명만 알려주고, 자세한 설명/풀이는 버튼으로 유도
-      return '$header$hintLine\n\n자세한 개념 정리와 단계별 풀이는 [더 자세히 보기]에서 확인해요.';
+      summary = header + '\n\n자세한 개념 정리와 단계별 풀이는 [더 자세히 보기]에서 확인해요.';
     } else {
-      // 개념 입력: 요약 + 자세히 보기 유도
       final short = concise(text, lines: 2, chars: 180);
-      return short.isEmpty
+      summary = short.isEmpty
           ? '이 개념을 간단히 살펴봤어요. 예제와 함께 더 자세히 배우려면 [더 자세히 보기]를 눌러요.'
-          : '$short\n\n예제와 함께 더 자세히 배우려면 [더 자세히 보기]를 눌러요.';
+          : short + '\n\n예제와 함께 더 자세히 배우려면 [더 자세히 보기]를 눌러요.';
     }
+    return (keywords: topConcepts, formulas: formulas, summary: summary);
   }
 
   // Heuristic formula name extraction from topic/explanation
@@ -779,14 +777,18 @@ class _LessonScreenState extends State<LessonScreen> {
 
 class _ExplanationCard extends StatelessWidget {
   const _ExplanationCard({
-    required this.content,
+    required this.keywords,
+    required this.formulas,
+    required this.summary,
     required this.onListenToggle,
     required this.isSpeaking,
     required this.onKeywordTap,
     this.onDetailsPressed,
   });
 
-  final String content;
+  final List<String> keywords;
+  final List<String> formulas;
+  final String summary;
   final VoidCallback onListenToggle;
   final bool isSpeaking;
   final void Function(String keyword) onKeywordTap;
@@ -812,36 +814,27 @@ class _ExplanationCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            // Show only approach concepts detected from the session
-            Builder(builder: (ctx) {
-              final session = ctx.watch<LessonSessionProvider>();
-              var keywords = session.conceptBreakdown
-                  .map((e) => e.name)
-                  .where((s) => s.trim().isNotEmpty)
-                  .take(8)
-                  .toList();
-              if (keywords.isEmpty) return const SizedBox.shrink();
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            if (keywords.isNotEmpty) ...[
+              Text('관련 개념으로 다시 배워 보기', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Text('관련 개념으로 다시 배워 보기', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final kw in keywords)
-                        ActionChip(
-                          label: Text('# $kw'),
-                          onPressed: () => onKeywordTap(kw),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                  for (final kw in keywords)
+                    ActionChip(
+                      label: Text('# $kw'),
+                      onPressed: () => onKeywordTap(kw),
+                    ),
                 ],
-              );
-            }),
-            Text(cleanMathForDisplay(content)),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (formulas.isNotEmpty) ...[
+              Text('• 공식: ${formulas.join(', ')}', style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 8),
+            ],
+            Text(summary),
             if (onDetailsPressed != null) ...[
               const SizedBox(height: 16),
               Align(

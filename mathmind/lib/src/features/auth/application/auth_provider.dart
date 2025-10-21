@@ -15,9 +15,9 @@ class AuthProvider extends ChangeNotifier {
     FirebaseAuth? firebaseAuth,
     FirebaseFirestore? firestore,
     GoogleSignIn? googleSignIn,
-  })  : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn(scopes: const ['email']) {
+  }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _googleSignIn = googleSignIn ?? GoogleSignIn(scopes: const ['email']) {
     _authSubscription = _firebaseAuth.authStateChanges().listen(
       _onAuthStateChanged,
     );
@@ -64,9 +64,7 @@ class AuthProvider extends ChangeNotifier {
     final trimmedName = name.trim();
     final trimmedEmail = email.trim();
 
-    if (trimmedName.isEmpty ||
-        trimmedEmail.isEmpty ||
-        password.isEmpty) {
+    if (trimmedName.isEmpty || trimmedEmail.isEmpty || password.isEmpty) {
       const message = '모든 필드를 입력해주세요.';
       _setError(message);
       throw AuthFailure(message);
@@ -76,7 +74,6 @@ class AuthProvider extends ChangeNotifier {
     _setError(null);
 
     try {
-
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: trimmedEmail,
         password: password,
@@ -260,7 +257,6 @@ class AuthProvider extends ChangeNotifier {
     _status = AuthStatus.authenticated;
     notifyListeners();
   }
-
 
   void _setLoading(bool value) {
     if (_isLoading == value) {

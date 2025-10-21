@@ -69,7 +69,8 @@ class AiContentService {
       return _fallbackDetailedExplanation(topic, baseExplanation);
     }
 
-    final prompt = '''
+    final prompt =
+        '''
 당신은 MathMind 튜터입니다. 다음 수학 주제에 대해 학습자의 수준(난이도 ${difficulty}단계)에 맞춰
 친근하고 이해하기 쉽게 '자세한 설명'을 작성해 주세요. 아래 항목을 모두 포함하세요.
 
@@ -125,7 +126,7 @@ ${baseExplanation}
     final examples = [
       '예시 1) 3/4 + 1/4 = 4/4 = 1 (분모가 같을 때는 분자만 더해요)',
       '예시 2) 2×6 = 12 (두 개의 묶음에 6개씩 있으니 모두 12개예요)',
-      '예시 3) 1m = 100cm (같은 길이 단위를 변환해요)'
+      '예시 3) 1m = 100cm (같은 길이 단위를 변환해요)',
     ];
     final tips = [
       '분모가 다르면 통분을 먼저 해요.',
@@ -886,6 +887,100 @@ ${baseExplanation}
     }
     return '잘하고 있어요! 특히 "$weakest" 부분을 한 줄로 정리해 보면 더 좋아요.';
   }
+
+  /// 키워드를 포함하는 기출문제 3개를 생성합니다
+  Future<List<PastProblem>> generatePastProblems({
+    required List<String> keywords,
+    required int difficulty,
+  }) async {
+    final client = _clientOrNull;
+    if (client == null || keywords.isEmpty) {
+      return _fallbackPastProblems(keywords);
+    }
+
+    final keywordsText = keywords.join(', ');
+    final prompt =
+        '''
+다음 수학 개념 키워드와 관련된 기출문제 스타일의 문제 3개를 만들어 주세요.
+
+키워드: $keywordsText
+난이도: ${difficulty}단계 (1=쉬움, 5=어려움)
+
+각 문제는 다음 형식의 JSON으로 작성해 주세요:
+{
+  "problems": [
+    {
+      "problem": "문제 내용 (구체적인 수식과 조건 포함)",
+      "hint": "핵심 힌트 1-2줄",
+      "difficulty": "상/중/하"
+    }
+  ]
+}
+
+요구사항:
+1. 실제 수능/모의고사 스타일의 문제로 작성
+2. 각 문제는 주어진 키워드를 1개 이상 포함
+3. 문제는 서로 다른 유형이어야 함
+4. 수식은 간단한 표기법 사용 (예: x^2, sqrt(x), f(x) 등)
+''';
+
+    try {
+      final response = await client.createChatCompletion(
+        request: CreateChatCompletionRequest(
+          model: ChatCompletionModel.modelId('gpt-4o-mini'),
+          messages: [
+            ChatCompletionMessage.system(
+              content: '당신은 수학 기출문제 전문가입니다. 실제 시험 수준의 문제를 한국어로 생성합니다.',
+            ),
+            ChatCompletionMessage.user(
+              content: ChatCompletionUserMessageContent.string(prompt),
+            ),
+          ],
+        ),
+      );
+
+      final content = response.choices.first.message.maybeMap(
+        assistant: (a) => a.content ?? '',
+        orElse: () => '',
+      );
+
+      if (content.isEmpty) {
+        return _fallbackPastProblems(keywords);
+      }
+
+      // JSON 파싱
+      final jsonMatch = RegExp(r'\{[\s\S]*\}').firstMatch(content);
+      if (jsonMatch == null) {
+        return _fallbackPastProblems(keywords);
+      }
+
+      final json = jsonDecode(jsonMatch.group(0)!) as Map<String, dynamic>;
+      final problemsList = json['problems'] as List<dynamic>?;
+
+      if (problemsList == null || problemsList.isEmpty) {
+        return _fallbackPastProblems(keywords);
+      }
+
+      return problemsList
+          .take(3)
+          .map((p) => PastProblem.fromJson(p as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('Failed to generate past problems: $e');
+      return _fallbackPastProblems(keywords);
+    }
+  }
+
+  List<PastProblem> _fallbackPastProblems(List<String> keywords) {
+    final keywordText = keywords.isNotEmpty ? keywords.first : '수학';
+    return [
+      PastProblem(
+        problem: '$keywordText 개념을 활용한 문제가 곧 표시됩니다.',
+        hint: '개념을 복습하면서 기다려 주세요.',
+        difficulty: '중',
+      ),
+    ];
+  }
 }
 
 class ConceptualEvaluation {
@@ -943,6 +1038,30 @@ class ConceptBreakdown {
 
   @override
   int get hashCode => Object.hash(name, summary);
+}
+
+class PastProblem {
+  const PastProblem({
+    required this.problem,
+    required this.hint,
+    required this.difficulty,
+  });
+
+  final String problem;
+  final String hint;
+  final String difficulty;
+
+  factory PastProblem.fromJson(Map<String, dynamic> json) {
+    return PastProblem(
+      problem: (json['problem'] as String?)?.trim() ?? '',
+      hint: (json['hint'] as String?)?.trim() ?? '',
+      difficulty: (json['difficulty'] as String?)?.trim() ?? '중',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'problem': problem, 'hint': hint, 'difficulty': difficulty};
+  }
 }
 
 class VisualExplanationImage {

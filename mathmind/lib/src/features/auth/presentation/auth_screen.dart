@@ -47,7 +47,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
+                ),
                 child: Form(
                   key: _formKey,
                   child: AutofillGroup(
@@ -77,14 +80,18 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : Text(_isSignUp ? '회원가입' : '로그인'),
                           ),
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
-                          onPressed: auth.isLoading ? null : _handleGoogleSignIn,
+                          onPressed: auth.isLoading
+                              ? null
+                              : _handleGoogleSignIn,
                           icon: const Icon(Icons.g_translate),
                           label: const Text('Google 계정으로 계속하기'),
                         ),
@@ -92,9 +99,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         TextButton(
                           onPressed: auth.isLoading ? null : _toggleMode,
                           child: Text(
-                            _isSignUp
-                                ? '이미 계정이 있으신가요? 로그인'
-                                : '처음 오셨나요? 회원가입',
+                            _isSignUp ? '이미 계정이 있으신가요? 로그인' : '처음 오셨나요? 회원가입',
                           ),
                         ),
                       ],
@@ -111,11 +116,13 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
-    final titleStyle =
-        theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold);
+    final titleStyle = theme.textTheme.headlineSmall?.copyWith(
+      fontWeight: FontWeight.bold,
+    );
     final subtitleColor = theme.colorScheme.onSurface.withValues(alpha: 0.7);
-    final subtitleStyle =
-        theme.textTheme.bodyMedium?.copyWith(color: subtitleColor);
+    final subtitleStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: subtitleColor,
+    );
     final actionLabel = _isSignUp ? '회원가입' : '로그인';
 
     return Column(
@@ -145,10 +152,7 @@ class _AuthScreenState extends State<AuthScreen> {
       controller: _nameController,
       textInputAction: TextInputAction.next,
       autofillHints: const [AutofillHints.name],
-      decoration: const InputDecoration(
-        labelText: '이름',
-        hintText: '학습자 이름',
-      ),
+      decoration: const InputDecoration(labelText: '이름', hintText: '학습자 이름'),
       validator: (value) {
         if (!_isSignUp) {
           return null;
@@ -279,10 +283,9 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _navigateToDashboard() {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      DashboardShell.routeName,
-      (route) => false,
-    );
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(DashboardShell.routeName, (route) => false);
   }
 
   void _showError(String message) {

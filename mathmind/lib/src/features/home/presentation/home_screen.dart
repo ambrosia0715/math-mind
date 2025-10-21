@@ -80,7 +80,9 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 28),
             _ActionButtons(subscription: subscription),
             const SizedBox(height: 28),
-            const _LessonHistoryPanel(),
+            const _RecentLessonsPanel(),
+            const SizedBox(height: 24),
+            const _ReviewHistoryPanel(),
             const SizedBox(height: 20),
           ],
         ),
@@ -118,10 +120,7 @@ class _LearningOverview extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF2C3E85),
-            const Color(0xFF5B7FD4),
-          ],
+          colors: [const Color(0xFF2C3E85), const Color(0xFF5B7FD4)],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
@@ -181,7 +180,7 @@ class _LearningOverview extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-            
+
             // 구분선
             Container(
               height: 1,
@@ -196,7 +195,7 @@ class _LearningOverview extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // 통계 카드들
             Row(
               children: [
@@ -220,7 +219,7 @@ class _LearningOverview extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            
+
             // 플랜 정보
             Container(
               padding: const EdgeInsets.all(12),
@@ -279,10 +278,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,17 +352,14 @@ class _ActionButtons extends StatelessWidget {
             ],
           ),
         ),
-        
+
         // 메인 버튼
         Container(
           height: 56,
           decoration: BoxDecoration(
             gradient: canAsk
                 ? const LinearGradient(
-                    colors: [
-                      Color(0xFF2C3E85),
-                      Color(0xFF5B7FD4),
-                    ],
+                    colors: [Color(0xFF2C3E85), Color(0xFF5B7FD4)],
                   )
                 : null,
             color: canAsk ? null : const Color(0xFFE5E7EB),
@@ -420,7 +413,7 @@ class _ActionButtons extends StatelessWidget {
             ),
           ),
         ),
-        
+
         if (!canAsk)
           Padding(
             padding: const EdgeInsets.only(top: 12),
@@ -429,10 +422,7 @@ class _ActionButtons extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFFFEF3C7),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: const Color(0xFFFDE68A),
-                  width: 1,
-                ),
+                border: Border.all(color: const Color(0xFFFDE68A), width: 1),
               ),
               child: Row(
                 children: [
@@ -463,8 +453,9 @@ class _ActionButtons extends StatelessWidget {
   }
 }
 
-class _LessonHistoryPanel extends StatelessWidget {
-  const _LessonHistoryPanel();
+// 최근 수업 패널 (복습 시간이 아직 안 된 것들)
+class _RecentLessonsPanel extends StatelessWidget {
+  const _RecentLessonsPanel();
 
   @override
   Widget build(BuildContext context) {
@@ -502,8 +493,8 @@ class _LessonHistoryPanel extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        
-        // 학습 기록 리스트
+
+        // 최근 학습 기록 리스트 (복습 시간 전)
         StreamBuilder<List<LessonHistory>>(
           stream: historyService.watchByUser(auth.currentUser!.id),
           builder: (context, snapshot) {
@@ -516,51 +507,118 @@ class _LessonHistoryPanel extends StatelessWidget {
               );
             }
 
-            final lessons = snapshot.data ?? [];
-            if (lessons.isEmpty) {
-              return Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFFE5E7EB),
-                    width: 1,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3F4F6),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.auto_stories_outlined,
-                        size: 40,
-                        color: Color(0xFF9CA3AF),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      l10n.homeNoLessonsYet,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF6B7280),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+            final allLessons = snapshot.data ?? [];
+            final now = DateTime.now();
+            // 복습 시간이 아직 안 된 것들만 표시
+            final recentLessons = allLessons
+                .where(
+                  (lesson) =>
+                      lesson.reviewDue != null &&
+                      lesson.reviewDue!.isAfter(now),
+                )
+                .toList();
+
+            if (recentLessons.isEmpty) {
+              return _EmptyStateCard(
+                icon: Icons.auto_stories_outlined,
+                iconColor: const Color(0xFF9CA3AF),
+                iconBackgroundColor: const Color(0xFFF3F4F6),
+                message: l10n.homeNoLessonsYet,
               );
             }
 
             return Column(
               children: [
-                for (final lesson in lessons.take(5)) ...[
-                  _LessonHistoryCard(lesson: lesson),
+                for (final lesson in recentLessons.take(5)) ...[
+                  _LessonHistoryCard(lesson: lesson, isReviewMode: false),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+// 복습 패널 (복습 시간이 된 것들)
+class _ReviewHistoryPanel extends StatelessWidget {
+  const _ReviewHistoryPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    if (!auth.isSignedIn) {
+      return const SizedBox.shrink();
+    }
+
+    final historyService = context.read<LessonHistoryService>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 섹션 헤더
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 20,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              '복습',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1F36),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // 복습 대기 리스트
+        StreamBuilder<List<LessonHistory>>(
+          stream: historyService.watchByUser(auth.currentUser!.id),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            final allLessons = snapshot.data ?? [];
+            final now = DateTime.now();
+            // 복습 시간이 된 것들만 표시
+            final reviewLessons = allLessons
+                .where(
+                  (lesson) =>
+                      lesson.reviewDue != null &&
+                      !lesson.reviewDue!.isAfter(now),
+                )
+                .toList();
+
+            if (reviewLessons.isEmpty) {
+              return const _EmptyStateCard(
+                icon: Icons.check_circle_outline,
+                iconColor: Color(0xFFF59E0B),
+                iconBackgroundColor: Color(0xFFFEF3C7),
+                message: '복습할 내용이 없어요',
+              );
+            }
+
+            return Column(
+              children: [
+                for (final lesson in reviewLessons.take(5)) ...[
+                  _LessonHistoryCard(lesson: lesson, isReviewMode: true),
                   const SizedBox(height: 12),
                 ],
               ],
@@ -573,9 +631,10 @@ class _LessonHistoryPanel extends StatelessWidget {
 }
 
 class _LessonHistoryCard extends StatelessWidget {
-  const _LessonHistoryCard({required this.lesson});
+  const _LessonHistoryCard({required this.lesson, this.isReviewMode = false});
 
   final LessonHistory lesson;
+  final bool isReviewMode;
 
   @override
   Widget build(BuildContext context) {
@@ -583,10 +642,7 @@ class _LessonHistoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFE5E7EB),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
       ),
       child: Material(
         color: Colors.transparent,
@@ -594,7 +650,10 @@ class _LessonHistoryCard extends StatelessWidget {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => LessonReviewScreen(lesson: lesson),
+                builder: (_) => LessonReviewScreen(
+                  lesson: lesson,
+                  startWithBlankExplanation: isReviewMode,
+                ),
               ),
             );
           },
@@ -603,22 +662,28 @@ class _LessonHistoryCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // 아이콘
+                // 아이콘 (최근 수업 vs 복습)
                 Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
+                    color: isReviewMode
+                        ? const Color(0xFFFEF3C7)
+                        : const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.bookmark_added_outlined,
-                    color: Color(0xFF2C3E85),
+                  child: Icon(
+                    isReviewMode
+                        ? Icons.schedule_outlined
+                        : Icons.bookmark_added_outlined,
+                    color: isReviewMode
+                        ? const Color(0xFFF59E0B)
+                        : const Color(0xFF2C3E85),
                     size: 22,
                   ),
                 ),
                 const SizedBox(width: 14),
-                
+
                 // 내용
                 Expanded(
                   child: Column(
@@ -645,7 +710,9 @@ class _LessonHistoryCard extends StatelessWidget {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: _getScoreColor(lesson.initialScore!).withOpacity(0.1),
+                                color: _getScoreColor(
+                                  lesson.initialScore!,
+                                ).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Row(
@@ -662,7 +729,9 @@ class _LessonHistoryCard extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: _getScoreColor(lesson.initialScore!),
+                                      color: _getScoreColor(
+                                        lesson.initialScore!,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -684,7 +753,58 @@ class _LessonHistoryCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
+                // 삭제 버튼
+                IconButton(
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Color(0xFF9CA3AF),
+                    size: 20,
+                  ),
+                  tooltip: '삭제',
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('학습 기록 삭제'),
+                        content: Text('${lesson.topic}\n\n이 학습 기록을 삭제하시겠습니까?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('취소'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            child: const Text('삭제'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirmed == true && context.mounted) {
+                      try {
+                        final historyService = context
+                            .read<LessonHistoryService>();
+                        await historyService.delete(lesson.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('학습 기록이 삭제되었습니다')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+                        }
+                      }
+                    }
+                  },
+                ),
+
                 // 화살표
                 const Icon(
                   Icons.chevron_right,
@@ -709,7 +829,7 @@ class _LessonHistoryCard extends StatelessWidget {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    
+
     if (diff.inDays == 0) {
       return '오늘';
     } else if (diff.inDays == 1) {
@@ -719,5 +839,58 @@ class _LessonHistoryCard extends StatelessWidget {
     } else {
       return '${date.month}/${date.day}';
     }
+  }
+}
+
+// 빈 상태 카드 (공통)
+class _EmptyStateCard extends StatelessWidget {
+  const _EmptyStateCard({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackgroundColor,
+    required this.message,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackgroundColor;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: iconBackgroundColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 40, color: iconColor),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF6B7280),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -64,7 +64,9 @@ class LessonHistoryService {
       return LessonHistory.fromFirestore(snapshot.docs.first);
     } on FirebaseException catch (error, stackTrace) {
       if (error.code == 'permission-denied') {
-        debugPrint('Firestore permission denied for fetchLatestByTopic; returning null.');
+        debugPrint(
+          'Firestore permission denied for fetchLatestByTopic; returning null.',
+        );
         return null;
       }
       debugPrint('Failed to fetch latest lesson history: $error\n$stackTrace');
@@ -72,6 +74,16 @@ class LessonHistoryService {
     } catch (error, stackTrace) {
       debugPrint('Failed to fetch latest lesson history: $error\n$stackTrace');
       return null;
+    }
+  }
+
+  /// 특정 학습 기록을 삭제합니다
+  Future<void> delete(String lessonId) async {
+    try {
+      await _collection.doc(lessonId).delete();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to delete lesson history: $error\n$stackTrace');
+      rethrow;
     }
   }
 

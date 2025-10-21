@@ -9,7 +9,9 @@ class MathExpressionService {
 
   Future<String?> recognizeFromPath(String path) async {
     final inputImage = InputImage.fromFilePath(path);
-    final RecognizedText recognized = await _recognizer.processImage(inputImage);
+    final RecognizedText recognized = await _recognizer.processImage(
+      inputImage,
+    );
     final buffer = StringBuffer();
     for (final block in recognized.blocks) {
       for (final line in block.lines) {

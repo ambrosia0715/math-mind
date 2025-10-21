@@ -17,6 +17,7 @@ class LessonHistory {
     this.detailedExplanation,
     this.lastRetentionScore,
     this.lastRetentionEvaluatedAt,
+    this.cachedPastProblems,
   });
 
   factory LessonHistory.fromFirestore(
@@ -42,6 +43,9 @@ class LessonHistory {
       lastRetentionScore: data['last_retention_score'] as int?,
       lastRetentionEvaluatedAt:
           (data['last_retention_evaluated_at'] as Timestamp?)?.toDate(),
+      cachedPastProblems: (data['cached_past_problems'] as List?)
+          ?.map((e) => e as Map<String, dynamic>)
+          .toList(),
     );
   }
 
@@ -60,6 +64,7 @@ class LessonHistory {
   final String? detailedExplanation;
   final int? lastRetentionScore;
   final DateTime? lastRetentionEvaluatedAt;
+  final List<Map<String, dynamic>>? cachedPastProblems;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -81,6 +86,7 @@ class LessonHistory {
       'last_retention_evaluated_at': lastRetentionEvaluatedAt != null
           ? Timestamp.fromDate(lastRetentionEvaluatedAt!)
           : null,
+      'cached_past_problems': cachedPastProblems,
     }..removeWhere((_, value) => value == null);
   }
 
@@ -100,6 +106,7 @@ class LessonHistory {
     String? detailedExplanation,
     int? lastRetentionScore,
     DateTime? lastRetentionEvaluatedAt,
+    List<Map<String, dynamic>>? cachedPastProblems,
   }) {
     return LessonHistory(
       id: id ?? this.id,
@@ -118,6 +125,7 @@ class LessonHistory {
       lastRetentionScore: lastRetentionScore ?? this.lastRetentionScore,
       lastRetentionEvaluatedAt:
           lastRetentionEvaluatedAt ?? this.lastRetentionEvaluatedAt,
+      cachedPastProblems: cachedPastProblems ?? this.cachedPastProblems,
     );
   }
 }

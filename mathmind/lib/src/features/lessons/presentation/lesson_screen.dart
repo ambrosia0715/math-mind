@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/services/ai_content_service.dart';
@@ -300,7 +300,7 @@ const List<String> _knownConceptKeywords = [
 ];
 
 bool _containsNumberOrOperator(String s) =>
-  RegExp(r'[0-9+\-*/×÷=^]').hasMatch(s);
+    RegExp(r'[0-9+\-*/×÷=^]').hasMatch(s);
 
 // Topic like just a keyword? If so, we can opt to hide suggestions block
 bool _isGenericConceptQuery(String? topic) {
@@ -310,7 +310,8 @@ bool _isGenericConceptQuery(String? topic) {
   // Exact or close match to known keywords
   if (_knownConceptKeywords.contains(t)) return true;
   // Also treat short keyword-like topics as generic
-  if (t.length <= 6 && _knownConceptKeywords.any((k) => t == k || k.contains(t))) {
+  if (t.length <= 6 &&
+      _knownConceptKeywords.any((k) => t == k || k.contains(t))) {
     return true;
   }
   return false;
@@ -432,6 +433,21 @@ class _LessonScreenState extends State<LessonScreen> {
         _selectedDifficulty = 10;
         _resetVisualState();
       });
+
+      // Arguments에서 초기 주제를 받았으면 설정하고 바로 수업 시작
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map<String, dynamic>) {
+        final initialTopic = args['initialTopic'] as String?;
+        if (initialTopic != null && initialTopic.trim().isNotEmpty) {
+          _topicController.text = initialTopic;
+          // 자동으로 수업 시작
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              _startLessonWithTopic(context, session, initialTopic);
+            }
+          });
+        }
+      }
     });
   }
 
@@ -658,7 +674,7 @@ class _LessonScreenState extends State<LessonScreen> {
       setState(() {
         _detailedCacheKey = cacheKey;
       });
-      
+
       session.setDetailedExplanation(detailedText);
 
       if (!context.mounted) return;
@@ -666,9 +682,11 @@ class _LessonScreenState extends State<LessonScreen> {
     } catch (error, stackTrace) {
       debugPrint('Detailed explanation failed: $error\n$stackTrace');
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(l10n.visualExplanationError), // 적절한 에러 메시지로 변경 가능
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(l10n.visualExplanationError), // 적절한 에러 메시지로 변경 가능
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isVisualLoading = false);
@@ -697,10 +715,10 @@ class _LessonScreenState extends State<LessonScreen> {
         return SafeArea(
           child: Padding(
             padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
+              left: 20,
+              right: 20,
               top: 24,
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 40,
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -723,9 +741,22 @@ class _LessonScreenState extends State<LessonScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    _cleanTextForDisplay(detailedText),
-                    style: theme.textTheme.bodyMedium,
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant.withOpacity(
+                          0.5,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      _cleanTextForDisplay(detailedText),
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Center(
@@ -847,10 +878,10 @@ class _LessonScreenState extends State<LessonScreen> {
         return SafeArea(
           child: Padding(
             padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
+              left: 20,
+              right: 20,
               top: 24,
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 40,
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -914,13 +945,20 @@ class _LessonScreenState extends State<LessonScreen> {
                                       }
                                       // New policy: set topic and show a short guide instead of starting immediately
                                       if (context.mounted) {
-                                        final ai = context.read<AiContentService>();
-                                        final guide = await ai.buildShortConceptGuide(kw);
-                                        final state = context.findAncestorStateOfType<_LessonScreenState>();
+                                        final ai = context
+                                            .read<AiContentService>();
+                                        final guide = await ai
+                                            .buildShortConceptGuide(kw);
+                                        final state = context
+                                            .findAncestorStateOfType<
+                                              _LessonScreenState
+                                            >();
                                         if (state != null) {
                                           state._topicController.text = kw;
                                         }
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(content: Text(guide)),
                                         );
                                       }
@@ -933,11 +971,24 @@ class _LessonScreenState extends State<LessonScreen> {
                         );
                       },
                     ),
-                  Text(
-                    _cleanTextForDisplay(description),
-                    style: theme.textTheme.bodyMedium,
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant.withOpacity(
+                          0.5,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      _cleanTextForDisplay(description),
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   // Optional illustrative image (if available/requested)
                   if (_visualImage != null || _visualImageTask != null)
                     ClipRRect(
@@ -1212,7 +1263,8 @@ class _LessonScreenState extends State<LessonScreen> {
           if (session.conceptExplanation != null)
             _ExplanationCard(
               content: session.conceptExplanation!,
-              onVisualPressed: () => _handleDetailedExplanation(context, session),
+              onVisualPressed: () =>
+                  _handleDetailedExplanation(context, session),
               isVisualLoading: _isVisualLoading,
             ),
           const SizedBox(height: 20),
@@ -1264,10 +1316,7 @@ class _LessonScreenState extends State<LessonScreen> {
               height: 52,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF2C3E85),
-                    Color(0xFF5B7FD4),
-                  ],
+                  colors: [Color(0xFF2C3E85), Color(0xFF5B7FD4)],
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
@@ -1437,9 +1486,9 @@ class _LessonScreenState extends State<LessonScreen> {
                 final guide = await ai.buildShortConceptGuide(concept.name);
                 _topicController.text = concept.name;
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(guide)),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(guide)));
                 }
               } else {
                 session.deselectConcept();
@@ -1524,7 +1573,8 @@ class _LessonScreenState extends State<LessonScreen> {
               controller: _explanationController,
               decoration: InputDecoration(
                 labelText: l10n.lessonYourExplanation,
-                hintText: '예: 함수는 입력값마다 하나의 출력값이 정해지는 대응 관계예요. 미분은 순간 변화율을 구하는 방법이에요.',
+                hintText:
+                    '예: 함수는 입력값마다 하나의 출력값이 정해지는 대응 관계예요. 미분은 순간 변화율을 구하는 방법이에요.',
               ),
               minLines: 4,
               maxLines: 8,
@@ -1601,7 +1651,7 @@ class _LessonScreenState extends State<LessonScreen> {
   String _buildConceptualPrompt(LessonSessionProvider session) {
     final topic = (session.topic ?? '').toLowerCase();
     final keywords = session.conceptBreakdown.map((e) => e.name).toList();
-    
+
     // 주제/키워드 기반 개념 중심 질문 생성
     if (topic.contains('함수') || keywords.any((k) => k.contains('함수'))) {
       return '💡 함수란 무엇이고, 어떤 성질을 가지고 있나요?';
@@ -1624,7 +1674,7 @@ class _LessonScreenState extends State<LessonScreen> {
     if (topic.contains('그래프') || keywords.any((k) => k.contains('그래프'))) {
       return '💡 그래프의 의미와 좌표 개념을 설명해 주세요.';
     }
-    
+
     // 일반 fallback
     return '💡 이 개념의 핵심 정의와 성질, 활용 방법을 설명해 주세요.';
   }
@@ -1670,8 +1720,8 @@ class _ExplanationCard extends StatelessWidget {
                     Text(
                       '관련 개념으로 다시 배워 보기',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -1685,14 +1735,17 @@ class _ExplanationCard extends StatelessWidget {
                               // New policy: do not start immediately. Set the topic field and show a short guide.
                               final ai = ctx.read<AiContentService>();
                               final guide = await ai.buildShortConceptGuide(kw);
-                              final state = ctx.findAncestorStateOfType<_LessonScreenState>();
+                              final state = ctx
+                                  .findAncestorStateOfType<
+                                    _LessonScreenState
+                                  >();
                               if (state != null) {
                                 state._topicController.text = kw;
                               }
                               if (ctx.mounted) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(content: Text(guide)),
-                                );
+                                ScaffoldMessenger.of(
+                                  ctx,
+                                ).showSnackBar(SnackBar(content: Text(guide)));
                               }
                             },
                           ),

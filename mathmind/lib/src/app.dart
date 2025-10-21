@@ -102,7 +102,7 @@ class MathMindApp extends StatelessWidget {
     const surfaceColor = Color(0xFFFFFFFF); // 순수 화이트 - 카드 배경
     const textPrimary = Color(0xFF1A1F36); // 진한 그레이 - 본문
     const textSecondary = Color(0xFF6B7280); // 중간 그레이 - 부가 정보
-    
+
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
@@ -118,7 +118,7 @@ class MathMindApp extends StatelessWidget {
 
     return base.copyWith(
       scaffoldBackgroundColor: backgroundColor,
-      
+
       // AppBar - 깔끔하고 최소한의 디자인
       appBarTheme: base.appBarTheme.copyWith(
         backgroundColor: surfaceColor,
@@ -133,7 +133,7 @@ class MathMindApp extends StatelessWidget {
           letterSpacing: -0.2,
         ),
       ),
-      
+
       // Card - 개념 블록을 나타내는 깔끔한 카드
       cardTheme: base.cardTheme.copyWith(
         elevation: 0,
@@ -141,38 +141,26 @@ class MathMindApp extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: const Color(0xFFE5E7EB),
-            width: 1,
-          ),
+          side: BorderSide(color: const Color(0xFFE5E7EB), width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
-      
+
       // Input - 학습 입력에 집중할 수 있는 디자인
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         filled: true,
         fillColor: surfaceColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFFE5E7EB),
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFFE5E7EB),
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: primaryColor,
-            width: 2,
-          ),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -184,16 +172,13 @@ class MathMindApp extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
       ),
-      
+
       // Button - 명확한 행동 유도
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -205,21 +190,15 @@ class MathMindApp extends StatelessWidget {
           ),
         ),
       ),
-      
+
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryColor,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 12,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          side: const BorderSide(
-            color: Color(0xFFE5E7EB),
-            width: 1.5,
-          ),
+          side: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -227,14 +206,11 @@ class MathMindApp extends StatelessWidget {
           ),
         ),
       ),
-      
+
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primaryColor,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 10,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -242,7 +218,7 @@ class MathMindApp extends StatelessWidget {
           ),
         ),
       ),
-      
+
       // Chip - 개념 태그 표현
       chipTheme: base.chipTheme.copyWith(
         backgroundColor: const Color(0xFFF3F4F6),
@@ -252,16 +228,13 @@ class MathMindApp extends StatelessWidget {
           fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide.none,
         ),
       ),
-      
+
       // Typography - 수학 개념 표현에 최적화
       textTheme: base.textTheme.copyWith(
         // 제목
@@ -325,14 +298,14 @@ class MathMindApp extends StatelessWidget {
           color: textSecondary,
         ),
       ),
-      
+
       // Divider - 개념 구분
       dividerTheme: const DividerThemeData(
         color: Color(0xFFE5E7EB),
         thickness: 1,
         space: 24,
       ),
-      
+
       // Progress Indicator
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: accentColor,

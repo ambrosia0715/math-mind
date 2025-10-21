@@ -8,10 +8,7 @@ class AppUser {
     required this.isAnonymous,
   });
 
-  factory AppUser.fromFirebaseUser(
-    User user, {
-    String? displayNameOverride,
-  }) {
+  factory AppUser.fromFirebaseUser(User user, {String? displayNameOverride}) {
     return AppUser(
       id: user.uid,
       email: user.email,
@@ -25,11 +22,7 @@ class AppUser {
   final String? displayName;
   final bool isAnonymous;
 
-  AppUser copyWith({
-    String? email,
-    String? displayName,
-    bool? isAnonymous,
-  }) {
+  AppUser copyWith({String? email, String? displayName, bool? isAnonymous}) {
     return AppUser(
       id: id,
       email: email ?? this.email,

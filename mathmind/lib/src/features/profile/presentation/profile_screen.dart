@@ -70,23 +70,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.profileParentReportTitle,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(l10n.profileParentReportBody),
-                ],
-              ),
-            ),
-          ),
+          // Parent report section removed
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () async {
@@ -94,13 +78,10 @@ class ProfileScreen extends StatelessWidget {
               if (!context.mounted) return;
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
-                ..showSnackBar(
-                  SnackBar(content: Text(l10n.profileSignedOut)),
-                );
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                AuthScreen.routeName,
-                (route) => false,
-              );
+                ..showSnackBar(SnackBar(content: Text(l10n.profileSignedOut)));
+              Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil(AuthScreen.routeName, (route) => false);
             },
             icon: const Icon(Icons.logout),
             label: Text(l10n.profileSignOut),

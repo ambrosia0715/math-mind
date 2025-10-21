@@ -1165,47 +1165,155 @@ class _LessonScreenState extends State<LessonScreen> {
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.lessonAppBarTitle)),
+      backgroundColor: const Color(0xFFF8F9FC),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2C3E85).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.menu_book_rounded,
+                size: 20,
+                color: Color(0xFF2C3E85),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(l10n.lessonAppBarTitle),
+          ],
+        ),
+        actions: [
+          // 진행 상태 표시
+          if (session.stage == LessonStage.generatingContent ||
+              session.stage == LessonStage.evaluating)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: const Color(0xFF2C3E85),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         children: [
           _buildTopicCard(context, session),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           if (session.conceptExplanation != null)
             _ExplanationCard(
               content: session.conceptExplanation!,
               onVisualPressed: () => _handleDetailedExplanation(context, session),
               isVisualLoading: _isVisualLoading,
             ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           if (session.conceptExplanation != null)
             _buildEvaluationCard(context, session),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           if (session.aiFeedback != null)
             _FeedbackCard(
               score: session.initialScore,
               feedback: session.aiFeedback!,
             ),
           if (session.errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                session.errorMessage!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+            Container(
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFEF4444).withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: Color(0xFFEF4444),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      session.errorMessage!,
+                      style: const TextStyle(
+                        color: Color(0xFFB91C1C),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          const SizedBox(height: 24),
-          // Allow saving even without evaluation per policy
+          const SizedBox(height: 28),
+          // 저장 버튼
           if (session.conceptExplanation != null)
-            FilledButton(
-              onPressed: () async {
-                await session.commitLesson();
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-              },
-              child: Text(l10n.lessonSaveAndReturn),
+            Container(
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF2C3E85),
+                    Color(0xFF5B7FD4),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2C3E85).withOpacity(0.25),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () async {
+                    await session.commitLesson();
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.save_outlined,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          l10n.lessonSaveAndReturn,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
+          const SizedBox(height: 20),
         ],
       ),
     );

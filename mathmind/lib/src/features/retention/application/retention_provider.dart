@@ -27,8 +27,10 @@ class RetentionProvider extends ChangeNotifier {
   bool get isLoading => _loading;
 
   // 진행 기준: 복습 화면을 통해 재평가된 점수(lastRetentionScore) >= 30
-  int get progressedCount => _dueLessons.where((l) => (l.lastRetentionScore ?? -1) >= 30).length;
-  int get pendingCount => (_dueLessons.length - progressedCount).clamp(0, _dueLessons.length);
+  int get progressedCount =>
+      _dueLessons.where((l) => (l.lastRetentionScore ?? -1) >= 30).length;
+  int get pendingCount =>
+      (_dueLessons.length - progressedCount).clamp(0, _dueLessons.length);
 
   Future<void> markRetentionComplete(LessonHistory history, int score) async {
     await _retentionService.markRetentionResult(history: history, score: score);

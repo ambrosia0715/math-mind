@@ -44,7 +44,7 @@ class MathMindApp extends StatelessWidget {
           },
         ),
         Provider(create: (_) => DailyLimitStorage()),
-  Provider(create: (_) => DetailsLimitStorage()),
+        Provider(create: (_) => DetailsLimitStorage()),
         Provider(
           create: (context) =>
               RetentionService(context.read<LessonHistoryService>()),

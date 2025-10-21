@@ -68,7 +68,21 @@ class LessonSessionProvider extends ChangeNotifier {
     required int difficulty,
     required String learnerName,
   }) async {
-    if (!canStart) return;
+    // 진행 중인 생성/평가 단계에서는 시작 불가
+    if (_stage == LessonStage.generatingContent || _stage == LessonStage.evaluating) {
+      return;
+    }
+
+    // 주제나 난이도가 바뀌었으면 무조건 새로 조회
+    final topicChanged = _topic != topic;
+    final difficultyChanged = _targetAge != difficulty;
+    final shouldRegenerate = topicChanged || difficultyChanged || _conceptExplanation == null;
+
+    if (!shouldRegenerate) {
+      // 완전히 동일한 주제+난이도: 기존 결과 재사용
+      notifyListeners();
+      return;
+    }
 
     _stage = LessonStage.generatingContent;
     _topic = topic;
@@ -82,12 +96,12 @@ class LessonSessionProvider extends ChangeNotifier {
     _selectedConcept = null;
     _isAnalyzingConcepts = false;
     _pendingConceptProblem = null;
-  _learnerExplanation = null;
-  _detailedExplanation = null;
+    _learnerExplanation = null;
+    _detailedExplanation = null;
     notifyListeners();
 
     try {
-      String? explanation;
+  String? explanation;
       final user = _authProvider.currentUser;
       if (user != null) {
         final recentLesson = await _historyService.fetchLatestByTopic(
@@ -95,17 +109,45 @@ class LessonSessionProvider extends ChangeNotifier {
           topic: topic,
         );
         final cachedExplanation = recentLesson?.conceptExplanation?.trim();
+        final cachedKeywords = recentLesson?.conceptKeywords;
         if (cachedExplanation != null && cachedExplanation.isNotEmpty) {
           explanation = cachedExplanation;
         }
+        if (cachedKeywords != null && cachedKeywords.isNotEmpty) {
+          // 접근개념 키워드도 캐싱
+          _conceptBreakdown = cachedKeywords.map((k) => ConceptBreakdown(name: k, summary: '')).toList();
+        }
       }
 
+      // Build concept-only prompt for problem-like topics (exclude step-by-step solutions)
+      final isProblemLike = RegExp(
+        r'[=<>]|\\w|\d+|\?|구하시오|문제',
+      ).hasMatch(topic.toLowerCase());
+      final conceptOnlyTopic = isProblemLike
+          ? '$topic (문제 풀이 단계는 제외하고, 필요한 개념 정리만 간단히 알려줘. 정의, 핵심 성질, 핵심 공식 중심으로 5~7문장 내로 요약하고, 단계별 풀이/정답 유도/증명은 포함하지 말아줘)'
+          : '$topic (정의와 핵심 개념/공식 중심으로 간단히 요약해줘. 예시는 짧게 한 줄 정도만)';
+
       explanation ??= await _aiContentService.explainConcept(
-        topic: topic,
+        topic: conceptOnlyTopic,
         difficulty: difficulty,
         learnerName: learnerName,
       );
       _conceptExplanation = explanation;
+      
+      // 키워드가 없으면 개념 분석 수행
+      if (_conceptBreakdown.isEmpty) {
+        try {
+          final concepts = await _aiContentService.analyzeProblemConcepts(
+            problem: topic,
+            difficulty: difficulty,
+          );
+          _conceptBreakdown = concepts;
+        } catch (e) {
+          debugPrint('Failed to analyze concepts: $e');
+          // 실패해도 계속 진행
+        }
+      }
+      
       _stage = LessonStage.ready;
     } catch (error, stackTrace) {
       debugPrint('Lesson generation failed: $error\n$stackTrace');
@@ -163,30 +205,28 @@ class LessonSessionProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Preferred: conceptual evaluation via OpenAI
-      int? score;
-      try {
-        score = await _aiContentService.evaluateUnderstanding(
-          topic: _topic!,
-          expectedConcept: _detectedConcept ?? (_conceptBreakdown.isNotEmpty ? _conceptBreakdown.first.name : ''),
-          learnerExplanation: learnerExplanation,
-        );
-      } catch (_) {
-        score = null;
-      }
+      // 세분화된 평가 (개념 인식, 적용, 연결) 사용
+      final evaluation = await _aiContentService.evaluateUnderstandingDetailed(
+        topic: _topic!,
+        expectedConcept:
+            _detectedConcept ??
+            (_conceptBreakdown.isNotEmpty
+                ? _conceptBreakdown.first.name
+                : ''),
+        learnerExplanation: learnerExplanation,
+        difficulty: _targetAge,
+      );
 
-      if (score == null) {
-        // Heuristic conceptual fallback
-        score = _aiContentService.heuristicScoreConceptual(
-          learnerExplanation,
-          topic: _topic!,
-          expectedConcept: _detectedConcept,
-        );
-      }
-
-      _initialScore = score;
+      _initialScore = evaluation.score;
       _learnerExplanation = learnerExplanation;
-      _aiFeedback = _buildFeedback(score);
+      
+      // 세부 피드백 생성
+      _aiFeedback = _buildDetailedFeedback(
+        evaluation.recall,
+        evaluation.application,
+        evaluation.integration,
+        evaluation.feedback,
+      );
       _stage = LessonStage.awaitingEvaluation;
     } catch (error, stackTrace) {
       debugPrint('Evaluation failed: $error\n$stackTrace');
@@ -197,6 +237,45 @@ class LessonSessionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _buildDetailedFeedback(
+    int recall,
+    int application,
+    int integration,
+    String aiFeedback,
+  ) {
+    final parts = <String>[];
+    
+    // AI 피드백 우선 사용
+    if (aiFeedback.trim().isNotEmpty) {
+      parts.add(aiFeedback.trim());
+    }
+    
+    // 세부 점수 표시
+    parts.add('\n📊 세부 평가:');
+    parts.add('• 개념 인식: $recall점 ${_ratingEmoji(recall)}');
+    parts.add('• 개념 적용: $application점 ${_ratingEmoji(application)}');
+    parts.add('• 개념 연결: $integration점 ${_ratingEmoji(integration)}');
+    
+    // 개선 포인트
+    final weakest = [recall, application, integration].reduce((a, b) => a < b ? a : b);
+    if (weakest == recall && recall < 70) {
+      parts.add('\n💡 개선 포인트: 핵심 용어와 정의를 명확히 언급해 보세요.');
+    } else if (weakest == application && application < 70) {
+      parts.add('\n💡 개선 포인트: 문제 풀이 절차나 공식 사용법을 구체적으로 설명해 보세요.');
+    } else if (weakest == integration && integration < 70) {
+      parts.add('\n💡 개선 포인트: 개념 간 관계나 이유를 논리적으로 연결해 보세요.');
+    }
+    
+    return parts.join('\n');
+  }
+
+  String _ratingEmoji(int score) {
+    if (score >= 85) return '🌟';
+    if (score >= 70) return '✅';
+    if (score >= 50) return '⚠️';
+    return '❌';
+  }
+
   Future<void> commitLesson() async {
     if (_topic == null || !_authProvider.isSignedIn) {
       return;
@@ -204,7 +283,9 @@ class LessonSessionProvider extends ChangeNotifier {
 
     try {
       // '더 자세히 보기'를 누르지 않은 경우 detailedExplanation을 null로 저장
-      final shouldSaveDetailed = _detailedExplanation != null && _detailedExplanation!.trim().isNotEmpty;
+      final shouldSaveDetailed =
+          _detailedExplanation != null &&
+          _detailedExplanation!.trim().isNotEmpty;
       final history = LessonHistory(
         id: const Uuid().v4(),
         userId: _authProvider.currentUser!.id,
@@ -215,8 +296,10 @@ class LessonSessionProvider extends ChangeNotifier {
         retentionScore: null,
         detectedConcept: _detectedConcept,
         conceptExplanation: _conceptExplanation,
-        conceptKeywords:
-            _conceptBreakdown.map((e) => e.name).where((e) => e.trim().isNotEmpty).toList(),
+        conceptKeywords: _conceptBreakdown
+            .map((e) => e.name)
+            .where((e) => e.trim().isNotEmpty)
+            .toList(),
         learnerExplanation: _learnerExplanation,
         lastEvaluatedAt: _initialScore != null ? DateTime.now() : null,
         detailedExplanation: shouldSaveDetailed ? _detailedExplanation : null,
@@ -273,15 +356,5 @@ class LessonSessionProvider extends ChangeNotifier {
     _selectedConcept = null;
     _detectedConcept = null;
     notifyListeners();
-  }
-
-  String _buildFeedback(int score) {
-    if (score >= 85) {
-      return '정말 잘했어요! 개념을 확실히 이해했네요.';
-    } else if (score >= 60) {
-      return '잘하고 있어요! 조금만 더 연습하면 완전히 익힐 수 있어요.';
-    } else {
-      return '설명을 다시 살펴보고 함께 예제를 풀어봐요.';
-    }
   }
 }

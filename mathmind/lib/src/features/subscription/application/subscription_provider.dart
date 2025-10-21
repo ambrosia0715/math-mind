@@ -15,10 +15,10 @@ class SubscriptionProvider extends ChangeNotifier {
     required DailyLimitStorage dailyLimitStorage,
     required AuthProvider authProvider,
     required DetailsLimitStorage detailsLimitStorage,
-  })  : _service = service,
-        _dailyLimitStorage = dailyLimitStorage,
-        _detailsLimitStorage = detailsLimitStorage,
-        _authProvider = authProvider {
+  }) : _service = service,
+       _dailyLimitStorage = dailyLimitStorage,
+       _detailsLimitStorage = detailsLimitStorage,
+       _authProvider = authProvider {
     _authProvider.addListener(_handleAuthChange);
     _handleAuthChange();
     unawaited(_initializeDailyLimitState());
@@ -207,8 +207,7 @@ class SubscriptionProvider extends ChangeNotifier {
 
   bool _resetDailyCounterIfNeeded({bool persistOnReset = true}) {
     final now = DateTime.now();
-    if (_lastQuestionDate == null ||
-        !_isSameDay(now, _lastQuestionDate!)) {
+    if (_lastQuestionDate == null || !_isSameDay(now, _lastQuestionDate!)) {
       _questionsAskedToday = 0;
       _lastQuestionDate = now;
       if (persistOnReset) {

@@ -21,7 +21,10 @@ class DetailsLimitStorage {
     return DetailsLimitSnapshot(detailsOpened: count, date: date);
   }
 
-  Future<void> save({required int detailsOpened, required DateTime date}) async {
+  Future<void> save({
+    required int detailsOpened,
+    required DateTime date,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_countKey, detailsOpened);
     await prefs.setString(_dateKey, date.toIso8601String());

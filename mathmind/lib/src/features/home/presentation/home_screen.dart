@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/services/lesson_history_service.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../lessons/domain/lesson_history.dart';
-import '../../lessons/presentation/lesson_screen_clean.dart';
+import '../../lessons/presentation/lesson_screen.dart' show LessonScreen;
 import '../../lessons/presentation/lesson_review_screen.dart';
 import '../../retention/application/retention_provider.dart';
 import '../../retention/presentation/retention_screen.dart';
@@ -24,9 +24,7 @@ class HomeScreen extends StatelessWidget {
     final retention = context.watch<RetentionProvider>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const MathMindLogo(height: 28),
-      ),
+      appBar: AppBar(title: const MathMindLogo(height: 28)),
       body: RefreshIndicator(
         onRefresh: () async {
           await context.read<SubscriptionProvider>().loadOfferings();
@@ -70,7 +68,10 @@ class _LearningOverview extends StatelessWidget {
     final remainingLabel = subscription.activeTier == SubscriptionTier.free
         ? (remaining != null ? '$remaining' : l10n.homeDailyLimitLoading)
         : l10n.generalUnlimited;
-    final pending = (retentionTotal - retentionProgressed).clamp(0, retentionTotal);
+    final pending = (retentionTotal - retentionProgressed).clamp(
+      0,
+      retentionTotal,
+    );
     final retentionSummary = l10n.homeRetentionSummary(
       retentionTotal.toString(),
       retentionProgressed.toString(),
@@ -183,10 +184,7 @@ class _PillStatistic extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                Text(
-                  value,
-                  style: theme.textTheme.titleMedium,
-                ),
+                Text(value, style: theme.textTheme.titleMedium),
                 if (trailingButtons.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Wrap(spacing: 8, children: trailingButtons),

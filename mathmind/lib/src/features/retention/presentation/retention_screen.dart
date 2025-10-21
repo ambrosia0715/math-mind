@@ -106,16 +106,24 @@ class _RetentionTaskCardState extends State<_RetentionTaskCard> {
             ),
             const SizedBox(height: 8),
             if (widget.lesson.initialScore != null)
-              Wrap(spacing: 8, children: [
-                Chip(
-                  label: Text(context.l10n
-                      .lessonUnderstandingLabel(widget.lesson.initialScore!.toString())),
-                  avatar: const Icon(Icons.assessment_outlined),
-                ),
-              ])
+              Wrap(
+                spacing: 8,
+                children: [
+                  Chip(
+                    label: Text(
+                      context.l10n.lessonUnderstandingLabel(
+                        widget.lesson.initialScore!.toString(),
+                      ),
+                    ),
+                    avatar: const Icon(Icons.assessment_outlined),
+                  ),
+                ],
+              )
             else
-              Text(context.l10n.homeRetentionPending,
-                  style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                context.l10n.homeRetentionPending,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
           ],
         ),
       ),

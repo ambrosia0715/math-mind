@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:mathmind/src/l10n/app_localizations.dart';
-import 'package:mathmind/src/features/lessons/presentation/lesson_screen_clean.dart';
+import 'package:mathmind/src/features/lessons/presentation/lesson_screen.dart';
 
 void main() {
   testWidgets('LessonScreen builds without exceptions', (tester) async {

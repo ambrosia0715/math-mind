@@ -73,13 +73,14 @@ class LessonHistory {
       'concept_explanation': conceptExplanation,
       'concept_keywords': conceptKeywords,
       'learner_explanation': learnerExplanation,
-      'last_evaluated_at':
-          lastEvaluatedAt != null ? Timestamp.fromDate(lastEvaluatedAt!) : null,
-    'detailed_explanation': detailedExplanation,
-    'last_retention_score': lastRetentionScore,
-    'last_retention_evaluated_at': lastRetentionEvaluatedAt != null
-      ? Timestamp.fromDate(lastRetentionEvaluatedAt!)
-      : null,
+      'last_evaluated_at': lastEvaluatedAt != null
+          ? Timestamp.fromDate(lastEvaluatedAt!)
+          : null,
+      'detailed_explanation': detailedExplanation,
+      'last_retention_score': lastRetentionScore,
+      'last_retention_evaluated_at': lastRetentionEvaluatedAt != null
+          ? Timestamp.fromDate(lastRetentionEvaluatedAt!)
+          : null,
     }..removeWhere((_, value) => value == null);
   }
 

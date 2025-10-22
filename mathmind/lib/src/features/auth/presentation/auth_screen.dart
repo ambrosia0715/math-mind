@@ -36,73 +36,79 @@ class _AuthScreenState extends State<AuthScreen> {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 32,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Form(
-                  key: _formKey,
-                  child: AutofillGroup(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildHeader(context),
-                        const SizedBox(height: 24),
-                        if (auth.errorMessage != null) ...[
-                          _ErrorBanner(message: auth.errorMessage!),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Form(
+                    key: _formKey,
+                    child: AutofillGroup(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildHeader(context),
+                          const SizedBox(height: 24),
+                          if (auth.errorMessage != null) ...[
+                            _ErrorBanner(message: auth.errorMessage!),
+                            const SizedBox(height: 16),
+                          ],
+                          if (_isSignUp) ...[
+                            _buildNameField(),
+                            const SizedBox(height: 16),
+                          ],
+                          _buildEmailField(),
                           const SizedBox(height: 16),
-                        ],
-                        if (_isSignUp) ...[
-                          _buildNameField(),
+                          _buildPasswordField(),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: auth.isLoading ? null : _submit,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: auth.isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(_isSignUp ? '회원가입' : '로그인'),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: auth.isLoading
+                                  ? null
+                                  : _handleGoogleSignIn,
+                              icon: const Icon(Icons.g_translate, size: 20),
+                              label: const Text(
+                                'Google 계정으로 계속',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: auth.isLoading ? null : _toggleMode,
+                            child: Text(
+                              _isSignUp ? '이미 계정이 있으신가요? 로그인' : '처음 오셨나요? 회원가입',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ],
-                        _buildEmailField(),
-                        const SizedBox(height: 16),
-                        _buildPasswordField(),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: auth.isLoading ? null : _submit,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: auth.isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Text(_isSignUp ? '회원가입' : '로그인'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: auth.isLoading
-                              ? null
-                              : _handleGoogleSignIn,
-                          icon: const Icon(Icons.g_translate),
-                          label: const Text('Google 계정으로 계속하기'),
-                        ),
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: auth.isLoading ? null : _toggleMode,
-                          child: Text(
-                            _isSignUp ? '이미 계정이 있으신가요? 로그인' : '처음 오셨나요? 회원가입',
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -116,32 +122,22 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
-    final titleStyle = theme.textTheme.headlineSmall?.copyWith(
-      fontWeight: FontWeight.bold,
-    );
     final subtitleColor = theme.colorScheme.onSurface.withValues(alpha: 0.7);
     final subtitleStyle = theme.textTheme.bodyMedium?.copyWith(
       color: subtitleColor,
     );
-    final actionLabel = _isSignUp ? '회원가입' : '로그인';
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const MathMindLogo(height: 40),
-            const SizedBox(width: 12),
-            Text(actionLabel, style: titleStyle),
-          ],
-        ),
-        const SizedBox(height: 8),
+        const MathMindLogo(height: 48),
+        const SizedBox(height: 16),
         Text(
           _isSignUp
               ? '아이디, 이름, 이메일을 입력하고 새 계정을 만들어 보세요.'
               : '계정에 로그인하고 맞춤형 수학 학습을 이어가세요.',
           style: subtitleStyle,
+          textAlign: TextAlign.center,
         ),
       ],
     );

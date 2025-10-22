@@ -12,7 +12,20 @@
           "package_name": "com.ambro.mathmind"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "766356917991-thsp8oehnosh4qb79qdmqj4t7l6o9lpe.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ambro.mathmind",
+            "certificate_hash": "26a398738d39b5afe5762f282fe77efe0955c6c3"
+          }
+        },
+        {
+          "client_id": "766356917991-4o2845l2jj02s5fvvkb74b6a3rfqqbtu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDPlcv-L7sNhaPTZ80xMuWflsXz7TOzY-g"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "766356917991-4o2845l2jj02s5fvvkb74b6a3rfqqbtu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

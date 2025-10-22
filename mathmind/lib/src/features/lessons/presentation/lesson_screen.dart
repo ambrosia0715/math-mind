@@ -390,7 +390,7 @@ class _LessonScreenState extends State<LessonScreen> {
     '곱': '×',
     '나누기': '÷',
     '분의': '/',
-    
+
     // 거듭제곱
     '제곱': '^2',
     '세제곱': '^3',
@@ -399,7 +399,7 @@ class _LessonScreenState extends State<LessonScreen> {
     '루트': '√',
     '제곱근': '√',
     '세제곱근': '∛',
-    
+
     // 그리스 문자
     '파이': 'π',
     '알파': 'α',
@@ -410,7 +410,7 @@ class _LessonScreenState extends State<LessonScreen> {
     '람다': 'λ',
     '시그마': 'σ',
     '오메가': 'ω',
-    
+
     // 비교 연산자
     '크거나같다': '≥',
     '이상일때': '≥',
@@ -427,7 +427,7 @@ class _LessonScreenState extends State<LessonScreen> {
     '불등': '≠',
     '플러스마이너스': '±',
     '플마': '±',
-    
+
     // 집합/논리
     '원소': '∈',
     '포함': '⊂',
@@ -438,7 +438,7 @@ class _LessonScreenState extends State<LessonScreen> {
     '무한': '∞',
     '모든': '∀',
     '존재': '∃',
-    
+
     // 삼각함수
     '사인': 'sin',
     '코사인': 'cos',
@@ -448,13 +448,13 @@ class _LessonScreenState extends State<LessonScreen> {
     '아크사인': 'arcsin',
     '아크코사인': 'arccos',
     '아크탄젠트': 'arctan',
-    
+
     // 로그/지수
     '로그': 'log',
     '자연로그': 'ln',
     '상용로그': 'log₁₀',
     '이자연상수': 'e',
-    
+
     // 미적분
     '극한': 'lim',
     '리미트': 'lim',
@@ -462,13 +462,13 @@ class _LessonScreenState extends State<LessonScreen> {
     '적분': '∫',
     '편미분': '∂',
     '델': '∇',
-    
+
     // 수열/합
     '시그마합': 'Σ',
     '합': 'Σ',
     '파이곱': 'Π',
     '곱셈': 'Π',
-    
+
     // 괄호
     '소괄호열기': '(',
     '소괄호닫기': ')',
@@ -481,14 +481,14 @@ class _LessonScreenState extends State<LessonScreen> {
   /// 한글을 수식으로 변환하는 함수
   String _convertKoreanToMath(String text) {
     String result = text;
-    
+
     // 긴 키워드부터 우선 변환 (예: "이상일때"를 "이상"보다 먼저 변환)
     final sortedKeys = _koreanToMathMap.keys.toList()
       ..sort((a, b) => b.length.compareTo(a.length));
-    
+
     for (final korean in sortedKeys) {
       final math = _koreanToMathMap[korean]!;
-      
+
       // 띄어쓰기와 상관없이 변환
       // 단, 한글 문자 사이에 있는 경우만 변환 (단어 중간에서 변환 방지)
       result = result.replaceAllMapped(
@@ -496,7 +496,7 @@ class _LessonScreenState extends State<LessonScreen> {
         (match) => '${match.group(1)}$math',
       );
     }
-    
+
     return result;
   }
 
@@ -1274,7 +1274,7 @@ class _LessonScreenState extends State<LessonScreen> {
 
   void _handlePromptChanged(String value, LessonSessionProvider session) {
     _resetGeneratedContent(session);
-    
+
     // 한글을 수식으로 자동 변환
     final convertedText = _convertKoreanToMath(value);
     if (convertedText != value) {
@@ -1282,12 +1282,14 @@ class _LessonScreenState extends State<LessonScreen> {
       _topicController.value = TextEditingValue(
         text: convertedText,
         selection: TextSelection.collapsed(
-          offset: currentSelection.baseOffset + (convertedText.length - value.length),
+          offset:
+              currentSelection.baseOffset +
+              (convertedText.length - value.length),
         ),
       );
       return; // 변환 후에는 나머지 로직 스킵 (재귀 방지)
     }
-    
+
     final trimmed = value.trim();
     if (trimmed.length >= 6) {
       session.analyzeProblem(trimmed);
@@ -1361,14 +1363,20 @@ class _LessonScreenState extends State<LessonScreen> {
                   icon: const Icon(Icons.translate, size: 16),
                   label: const Text('한글변환', style: TextStyle(fontSize: 12)),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             // 기본 수학 기호
-            const Text('기본 기호:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const Text(
+              '기본 기호:',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
             const SizedBox(height: 4),
             Wrap(
               spacing: 6,
@@ -1390,7 +1398,10 @@ class _LessonScreenState extends State<LessonScreen> {
             ),
             const SizedBox(height: 8),
             // 함수 및 고급 기호
-            const Text('함수 & 연산:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const Text(
+              '함수 & 연산:',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
             const SizedBox(height: 4),
             Wrap(
               spacing: 6,
@@ -1418,7 +1429,10 @@ class _LessonScreenState extends State<LessonScreen> {
                     icon: const Icon(Icons.content_paste, size: 16),
                     label: const Text('템플릿', style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                     ),
                   ),
                 ),
@@ -1430,7 +1444,10 @@ class _LessonScreenState extends State<LessonScreen> {
                     icon: const Icon(Icons.clear, size: 16),
                     label: const Text('지우기', style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                     ),
                   ),
                 ),
@@ -1501,34 +1518,46 @@ class _LessonScreenState extends State<LessonScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // 기본 함수
-                const Text('🔢 기본 함수', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  '🔢 기본 함수',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 _templateButton('이차함수', 'f(x) = ax² + bx + c'),
                 _templateButton('삼차함수', 'f(x) = ax³ + bx² + cx + d'),
                 _templateButton('지수함수', 'f(x) = a·bˣ'),
                 _templateButton('로그함수', 'f(x) = logₐ(x)'),
                 _templateButton('삼각함수', 'f(x) = A sin(Bx + C) + D'),
                 const Divider(),
-                
+
                 // 미적분
-                const Text('📈 미적분', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  '📈 미적분',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 _templateButton('극한', 'lim_{x→a} f(x) = L'),
                 _templateButton('도함수 정의', "f'(x) = lim_{h→0} [f(x+h)-f(x)]/h"),
                 _templateButton('적분', '∫ f(x)dx = F(x) + C'),
                 _templateButton('정적분', '∫[a,b] f(x)dx'),
                 _templateButton('편미분', '∂f/∂x, ∂f/∂y'),
                 const Divider(),
-                
+
                 // 수열과 급수
-                const Text('🔄 수열과 급수', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  '🔄 수열과 급수',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 _templateButton('등차수열', 'aₙ = a₁ + (n-1)d'),
                 _templateButton('등비수열', 'aₙ = a₁ · r^(n-1)'),
                 _templateButton('피보나치', 'aₙ = aₙ₋₁ + aₙ₋₂'),
                 _templateButton('합 기호', 'Σ(k=1 to n) aₖ'),
                 _templateButton('무한급수', 'Σ(n=1 to ∞) aₙ'),
                 const Divider(),
-                
+
                 // 조합 확률
-                const Text('🎲 조합과 확률', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  '🎲 조합과 확률',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 _templateButton('조합', 'C(n,r) = n!/(r!(n-r)!)'),
                 _templateButton('순열', 'P(n,r) = n!/(n-r)!'),
                 _templateButton('확률', 'P(A) = 사건A의 경우의 수 / 전체 경우의 수'),
@@ -1562,7 +1591,7 @@ class _LessonScreenState extends State<LessonScreen> {
   void _showVoiceInputDialog() {
     bool isListening = false;
     String recognizedText = '';
-    
+
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -1632,7 +1661,7 @@ class _LessonScreenState extends State<LessonScreen> {
                             isListening = true;
                             recognizedText = '';
                           });
-                          
+
                           final success = await speech.listen(
                             onFinalResult: (text) {
                               setDialogState(() {
@@ -1646,7 +1675,7 @@ class _LessonScreenState extends State<LessonScreen> {
                               });
                             },
                           );
-                          
+
                           if (!success) {
                             setDialogState(() {
                               isListening = false;
@@ -1744,7 +1773,11 @@ class _LessonScreenState extends State<LessonScreen> {
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.arrow_forward, size: 16, color: Colors.blue),
+                              const Icon(
+                                Icons.arrow_forward,
+                                size: 16,
+                                color: Colors.blue,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 flex: 1,
@@ -1778,13 +1811,11 @@ class _LessonScreenState extends State<LessonScreen> {
     );
   }
 
-
-
   /// 스낵바 표시
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -1978,10 +2009,16 @@ class _LessonScreenState extends State<LessonScreen> {
                   tooltip: '수식 입력 도우미',
                   onSelected: (value) => _insertMathExpression(value),
                   itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'template', child: Text('📝 수식 템플릿')),
+                    const PopupMenuItem(
+                      value: 'template',
+                      child: Text('📝 수식 템플릿'),
+                    ),
                     // 웹이 아닌 경우에만 음성 입력 표시 (모바일 전용)
                     if (!kIsWeb)
-                      const PopupMenuItem(value: 'voice', child: Text('🎤 음성 입력')),
+                      const PopupMenuItem(
+                        value: 'voice',
+                        child: Text('🎤 음성 입력'),
+                      ),
                   ],
                 ),
               ),
@@ -1996,7 +2033,10 @@ class _LessonScreenState extends State<LessonScreen> {
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
@@ -2004,7 +2044,11 @@ class _LessonScreenState extends State<LessonScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.lightbulb_outline, size: 16, color: Colors.blue.shade700),
+                    Icon(
+                      Icons.lightbulb_outline,
+                      size: 16,
+                      color: Colors.blue.shade700,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       '💡 입력 방법 가이드',
@@ -2016,7 +2060,9 @@ class _LessonScreenState extends State<LessonScreen> {
                     ),
                     const Spacer(),
                     Icon(
-                      _isInputGuideExpanded ? Icons.expand_less : Icons.expand_more,
+                      _isInputGuideExpanded
+                          ? Icons.expand_less
+                          : Icons.expand_more,
                       color: Colors.blue.shade700,
                     ),
                   ],
@@ -2037,12 +2083,18 @@ class _LessonScreenState extends State<LessonScreen> {
                   children: [
                     Text(
                       '① 수식을 바로 입력: x^2 + 2x + a',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '② 한글로 자연스럽게 나열: "엑스 제곱 더하기 2엑스 더하기 에이"',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Container(
@@ -2092,15 +2144,24 @@ class _LessonScreenState extends State<LessonScreen> {
                                 const SizedBox(height: 6),
                                 Text(
                                   '일 때, 함수 f(x)가 모든 실수에서 연속이고,',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade700,
+                                  ),
                                 ),
                                 Text(
                                   'lim(x→1) [f(x)-f(1)]/(x-1) = 4를 만족하도록 하는',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade700,
+                                  ),
                                 ),
                                 Text(
                                   '실수 a, b의 값을 구하시오.',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade700,
+                                  ),
                                 ),
                               ],
                             ),
@@ -2108,7 +2169,11 @@ class _LessonScreenState extends State<LessonScreen> {
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              Icon(Icons.arrow_downward, size: 16, color: Colors.green.shade600),
+                              Icon(
+                                Icons.arrow_downward,
+                                size: 16,
+                                color: Colors.green.shade600,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 '이렇게 한글로 읽어서 입력하면 됩니다',
@@ -2142,7 +2207,10 @@ class _LessonScreenState extends State<LessonScreen> {
                     const SizedBox(height: 4),
                     Text(
                       '③ 아래 수식 버튼 또는 템플릿 활용',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                   ],
                 ),

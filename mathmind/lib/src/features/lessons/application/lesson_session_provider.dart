@@ -337,7 +337,7 @@ class LessonSessionProvider extends ChangeNotifier {
         topic: _topic!,
         learnedAt: DateTime.now(),
         initialScore: _initialScore,
-        reviewDue: DateTime.now().add(const Duration(minutes: 10)),
+        reviewDue: DateTime.now().add(const Duration(days: 3)),
         retentionScore: null,
         detectedConcept: _detectedConcept,
         conceptExplanation: _conceptExplanation,

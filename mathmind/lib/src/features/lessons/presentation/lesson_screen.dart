@@ -1,3 +1,4 @@
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -369,6 +370,7 @@ class _LessonScreenState extends State<LessonScreen> {
   int _selectedDifficulty = 10;
   bool _isListening = false;
   bool _isVisualLoading = false;
+  bool _isInputGuideExpanded = false; // 입력 가이드 펼침 상태
   // Detailed explanation cache key (topic + difficulty)
   String? _detailedCacheKey;
   String? _visualCacheKey;
@@ -376,6 +378,127 @@ class _LessonScreenState extends State<LessonScreen> {
   String? _visualFocusHint;
   Future<VisualExplanationImage?>? _visualImageTask;
   VisualExplanationImage? _visualImage;
+
+  // 한글-수식 변환 맵
+  static const Map<String, String> _koreanToMathMap = {
+    // 기본 연산
+    '더하기': '+',
+    '플러스': '+',
+    '빼기': '-',
+    '마이너스': '-',
+    '곱하기': '×',
+    '곱': '×',
+    '나누기': '÷',
+    '분의': '/',
+    
+    // 거듭제곱
+    '제곱': '^2',
+    '세제곱': '^3',
+    '네제곱': '^4',
+    '거듭제곱': '^',
+    '루트': '√',
+    '제곱근': '√',
+    '세제곱근': '∛',
+    
+    // 그리스 문자
+    '파이': 'π',
+    '알파': 'α',
+    '베타': 'β',
+    '감마': 'γ',
+    '델타': 'δ',
+    '세타': 'θ',
+    '람다': 'λ',
+    '시그마': 'σ',
+    '오메가': 'ω',
+    
+    // 비교 연산자
+    '크거나같다': '≥',
+    '이상일때': '≥',
+    '이상': '≥',
+    '보다크거나같다': '≥',
+    '작거나같다': '≤',
+    '이하일때': '≤',
+    '이하': '≤',
+    '보다작거나같다': '≤',
+    '보다크다': '>',
+    '보다작다': '<',
+    '같다': '=',
+    '같지않다': '≠',
+    '불등': '≠',
+    '플러스마이너스': '±',
+    '플마': '±',
+    
+    // 집합/논리
+    '원소': '∈',
+    '포함': '⊂',
+    '합집합': '∪',
+    '교집합': '∩',
+    '공집합': '∅',
+    '무한대': '∞',
+    '무한': '∞',
+    '모든': '∀',
+    '존재': '∃',
+    
+    // 삼각함수
+    '사인': 'sin',
+    '코사인': 'cos',
+    '코싸인': 'cos',
+    '탄젠트': 'tan',
+    '탄': 'tan',
+    '아크사인': 'arcsin',
+    '아크코사인': 'arccos',
+    '아크탄젠트': 'arctan',
+    
+    // 로그/지수
+    '로그': 'log',
+    '자연로그': 'ln',
+    '상용로그': 'log₁₀',
+    '이자연상수': 'e',
+    
+    // 미적분
+    '극한': 'lim',
+    '리미트': 'lim',
+    '미분': 'd/dx',
+    '적분': '∫',
+    '편미분': '∂',
+    '델': '∇',
+    
+    // 수열/합
+    '시그마합': 'Σ',
+    '합': 'Σ',
+    '파이곱': 'Π',
+    '곱셈': 'Π',
+    
+    // 괄호
+    '소괄호열기': '(',
+    '소괄호닫기': ')',
+    '중괄호열기': '{',
+    '중괄호닫기': '}',
+    '대괄호열기': '[',
+    '대괄호닫기': ']',
+  };
+
+  /// 한글을 수식으로 변환하는 함수
+  String _convertKoreanToMath(String text) {
+    String result = text;
+    
+    // 긴 키워드부터 우선 변환 (예: "이상일때"를 "이상"보다 먼저 변환)
+    final sortedKeys = _koreanToMathMap.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    
+    for (final korean in sortedKeys) {
+      final math = _koreanToMathMap[korean]!;
+      
+      // 띄어쓰기와 상관없이 변환
+      // 단, 한글 문자 사이에 있는 경우만 변환 (단어 중간에서 변환 방지)
+      result = result.replaceAllMapped(
+        RegExp('(^|\\s|[가-힣])($korean)(?=\\s|[가-힣]|\$)', multiLine: true),
+        (match) => '${match.group(1)}$math',
+      );
+    }
+    
+    return result;
+  }
 
   void _resetGeneratedContent(LessonSessionProvider session) {
     if (_isListening) {
@@ -1151,6 +1274,20 @@ class _LessonScreenState extends State<LessonScreen> {
 
   void _handlePromptChanged(String value, LessonSessionProvider session) {
     _resetGeneratedContent(session);
+    
+    // 한글을 수식으로 자동 변환
+    final convertedText = _convertKoreanToMath(value);
+    if (convertedText != value) {
+      final currentSelection = _topicController.selection;
+      _topicController.value = TextEditingValue(
+        text: convertedText,
+        selection: TextSelection.collapsed(
+          offset: currentSelection.baseOffset + (convertedText.length - value.length),
+        ),
+      );
+      return; // 변환 후에는 나머지 로직 스킵 (재귀 방지)
+    }
+    
     final trimmed = value.trim();
     if (trimmed.length >= 6) {
       session.analyzeProblem(trimmed);
@@ -1201,6 +1338,453 @@ class _LessonScreenState extends State<LessonScreen> {
     _topicController.text = trimmedTopic;
     if (!mounted) return;
     setState(_resetVisualState);
+  }
+
+  /// 수식 입력 도우미 위젯 빌드
+  Widget _buildMathInputHelper(BuildContext context) {
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '🔧 수식 입력 도우미',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                TextButton.icon(
+                  onPressed: () => _showKoreanConversionGuide(),
+                  icon: const Icon(Icons.translate, size: 16),
+                  label: const Text('한글변환', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // 기본 수학 기호
+            const Text('기본 기호:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                _mathButton('x²', 'x^2'),
+                _mathButton('x³', 'x^3'),
+                _mathButton('√x', 'sqrt(x)'),
+                _mathButton('∞', '∞'),
+                _mathButton('π', 'π'),
+                _mathButton('≥', '≥'),
+                _mathButton('≤', '≤'),
+                _mathButton('≠', '≠'),
+                _mathButton('±', '±'),
+                _mathButton('∈', '∈'),
+                _mathButton('∀', '∀'),
+                _mathButton('∃', '∃'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // 함수 및 고급 기호
+            const Text('함수 & 연산:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                _mathButton('sin', 'sin(x)'),
+                _mathButton('cos', 'cos(x)'),
+                _mathButton('tan', 'tan(x)'),
+                _mathButton('log', 'log(x)'),
+                _mathButton('ln', 'ln(x)'),
+                _mathButton('lim', 'lim_{x→a}'),
+                _mathButton('∫', '∫'),
+                _mathButton('Σ', 'Σ'),
+                _mathButton('∏', '∏'),
+                _mathButton('∂', '∂/∂x'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // 빠른 액션 버튼들
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showMathTemplateDialog(),
+                    icon: const Icon(Icons.content_paste, size: 16),
+                    label: const Text('템플릿', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _topicController.clear(),
+                    icon: const Icon(Icons.clear, size: 16),
+                    label: const Text('지우기', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 수학 기호 버튼 위젯
+  Widget _mathButton(String display, String value) {
+    return InkWell(
+      onTap: () => _insertAtCursor(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(4),
+          color: Colors.grey.shade50,
+        ),
+        child: Text(
+          display,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
+  }
+
+  /// 커서 위치에 텍스트 삽입
+  void _insertAtCursor(String text) {
+    final currentText = _topicController.text;
+    final selection = _topicController.selection;
+    final newText = currentText.replaceRange(
+      selection.start,
+      selection.end,
+      text,
+    );
+    _topicController.text = newText;
+    _topicController.selection = TextSelection.collapsed(
+      offset: selection.start + text.length,
+    );
+  }
+
+  /// 수식 입력 메뉴 처리
+  void _insertMathExpression(String type) {
+    switch (type) {
+      case 'template':
+        _showMathTemplateDialog();
+        break;
+      case 'voice':
+        _showVoiceInputDialog();
+        break;
+    }
+  }
+
+  /// 수식 템플릿 다이얼로그
+  void _showMathTemplateDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('📝 수식 템플릿'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 기본 함수
+                const Text('🔢 기본 함수', style: TextStyle(fontWeight: FontWeight.bold)),
+                _templateButton('이차함수', 'f(x) = ax² + bx + c'),
+                _templateButton('삼차함수', 'f(x) = ax³ + bx² + cx + d'),
+                _templateButton('지수함수', 'f(x) = a·bˣ'),
+                _templateButton('로그함수', 'f(x) = logₐ(x)'),
+                _templateButton('삼각함수', 'f(x) = A sin(Bx + C) + D'),
+                const Divider(),
+                
+                // 미적분
+                const Text('📈 미적분', style: TextStyle(fontWeight: FontWeight.bold)),
+                _templateButton('극한', 'lim_{x→a} f(x) = L'),
+                _templateButton('도함수 정의', "f'(x) = lim_{h→0} [f(x+h)-f(x)]/h"),
+                _templateButton('적분', '∫ f(x)dx = F(x) + C'),
+                _templateButton('정적분', '∫[a,b] f(x)dx'),
+                _templateButton('편미분', '∂f/∂x, ∂f/∂y'),
+                const Divider(),
+                
+                // 수열과 급수
+                const Text('🔄 수열과 급수', style: TextStyle(fontWeight: FontWeight.bold)),
+                _templateButton('등차수열', 'aₙ = a₁ + (n-1)d'),
+                _templateButton('등비수열', 'aₙ = a₁ · r^(n-1)'),
+                _templateButton('피보나치', 'aₙ = aₙ₋₁ + aₙ₋₂'),
+                _templateButton('합 기호', 'Σ(k=1 to n) aₖ'),
+                _templateButton('무한급수', 'Σ(n=1 to ∞) aₙ'),
+                const Divider(),
+                
+                // 조합 확률
+                const Text('🎲 조합과 확률', style: TextStyle(fontWeight: FontWeight.bold)),
+                _templateButton('조합', 'C(n,r) = n!/(r!(n-r)!)'),
+                _templateButton('순열', 'P(n,r) = n!/(n-r)!'),
+                _templateButton('확률', 'P(A) = 사건A의 경우의 수 / 전체 경우의 수'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 템플릿 버튼 위젯
+  Widget _templateButton(String title, String template) {
+    return ListTile(
+      title: Text(title),
+      subtitle: Text(template, style: const TextStyle(fontFamily: 'monospace')),
+      onTap: () {
+        _topicController.text = template;
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  /// 음성 입력 다이얼로그
+  void _showVoiceInputDialog() {
+    bool isListening = false;
+    String recognizedText = '';
+    
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('🎤 음성 입력'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isListening ? Icons.mic : Icons.mic_none,
+                  size: 48,
+                  color: isListening ? Colors.red : Colors.blue,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isListening ? '듣는 중...' : '수식을 말해주세요',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isListening ? Colors.red : Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (!isListening)
+                  const Text(
+                    '예시: "엑스 제곱 더하기 이엑스 빼기 삼"',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                if (recognizedText.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      recognizedText,
+                      style: const TextStyle(fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('취소'),
+              ),
+              if (!isListening && recognizedText.isNotEmpty)
+                ElevatedButton(
+                  onPressed: () {
+                    _topicController.text = recognizedText;
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('적용'),
+                )
+              else
+                ElevatedButton(
+                  onPressed: isListening
+                      ? null
+                      : () async {
+                          final speech = context.read<SpeechService>();
+                          setDialogState(() {
+                            isListening = true;
+                            recognizedText = '';
+                          });
+                          
+                          final success = await speech.listen(
+                            onFinalResult: (text) {
+                              setDialogState(() {
+                                recognizedText = text;
+                                isListening = false;
+                              });
+                            },
+                            onPartialResult: (text) {
+                              setDialogState(() {
+                                recognizedText = text;
+                              });
+                            },
+                          );
+                          
+                          if (!success) {
+                            setDialogState(() {
+                              isListening = false;
+                            });
+                            if (mounted) {
+                              Navigator.pop(dialogContext);
+                              _showSnackBar('음성 인식 기능을 사용할 수 없어요.');
+                            }
+                          }
+                        },
+                  child: const Text('시작'),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// 한글-수식 변환 가이드 다이얼로그
+  void _showKoreanConversionGuide() {
+    final examples = [
+      {'korean': '엑스 제곱', 'math': 'x^2', 'category': '거듭제곱'},
+      {'korean': '루트 엑스', 'math': '√x', 'category': '거듭제곱'},
+      {'korean': '파이', 'math': 'π', 'category': '그리스 문자'},
+      {'korean': '무한대', 'math': '∞', 'category': '특수 기호'},
+      {'korean': '이상', 'math': '≥', 'category': '비교 연산'},
+      {'korean': '이하', 'math': '≤', 'category': '비교 연산'},
+      {'korean': '사인', 'math': 'sin', 'category': '삼각함수'},
+      {'korean': '코사인', 'math': 'cos', 'category': '삼각함수'},
+      {'korean': '탄젠트', 'math': 'tan', 'category': '삼각함수'},
+      {'korean': '로그', 'math': 'log', 'category': '로그/지수'},
+      {'korean': '자연로그', 'math': 'ln', 'category': '로그/지수'},
+      {'korean': '극한', 'math': 'lim', 'category': '미적분'},
+      {'korean': '적분', 'math': '∫', 'category': '미적분'},
+      {'korean': '시그마합', 'math': 'Σ', 'category': '수열/합'},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.translate, size: 24),
+            SizedBox(width: 8),
+            Text('한글 → 수식 자동 변환'),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '입력창에 한글을 입력하면 자동으로 수식 기호로 변환됩니다.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '변환 예시:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: examples.map((example) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      example['korean']!,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                    Text(
+                                      example['category']!,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward, size: 16, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 1,
+                                child: Text(
+                                  example['math']!,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+  /// 스낵바 표시
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -1389,9 +1973,185 @@ class _LessonScreenState extends State<LessonScreen> {
               decoration: InputDecoration(
                 labelText: l10n.lessonTopicLabel,
                 hintText: l10n.lessonTopicHint,
+                suffixIcon: PopupMenuButton<String>(
+                  icon: const Icon(Icons.functions),
+                  tooltip: '수식 입력 도우미',
+                  onSelected: (value) => _insertMathExpression(value),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'template', child: Text('📝 수식 템플릿')),
+                    // 웹이 아닌 경우에만 음성 입력 표시 (모바일 전용)
+                    if (!kIsWeb)
+                      const PopupMenuItem(value: 'voice', child: Text('🎤 음성 입력')),
+                  ],
+                ),
               ),
               onChanged: (value) => _handlePromptChanged(value, session),
             ),
+            const SizedBox(height: 12),
+            // 입력 방법 가이드 (펼치기/접기)
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _isInputGuideExpanded = !_isInputGuideExpanded;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.lightbulb_outline, size: 16, color: Colors.blue.shade700),
+                    const SizedBox(width: 6),
+                    Text(
+                      '💡 입력 방법 가이드',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.blue.shade900,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _isInputGuideExpanded ? Icons.expand_less : Icons.expand_more,
+                      color: Colors.blue.shade700,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_isInputGuideExpanded) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '① 수식을 바로 입력: x^2 + 2x + a',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '② 한글로 자연스럽게 나열: "엑스 제곱 더하기 2엑스 더하기 에이"',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue.shade100),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '📝 예시) 이런 수식 문제를',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '함수 f(x) = { x² + 2x + a  (x < 1)',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade800,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  '          { bx + 3      (x ≥ 1)',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade800,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '일 때, 함수 f(x)가 모든 실수에서 연속이고,',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                                ),
+                                Text(
+                                  'lim(x→1) [f(x)-f(1)]/(x-1) = 4를 만족하도록 하는',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                                ),
+                                Text(
+                                  '실수 a, b의 값을 구하시오.',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Icon(Icons.arrow_downward, size: 16, color: Colors.green.shade600),
+                              const SizedBox(width: 6),
+                              Text(
+                                '이렇게 한글로 읽어서 입력하면 됩니다',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '함수 에프엑스는 엑스가 1보다 작을 때는 엑스 제곱 더하기 2엑스 더하기 에이, 엑스가 1 이상일 때는 비 엑스 더하기 3이다. 이때 함수 에프엑스가 모든 실수에서 연속이고, 엑스가 1로 갈 때 에프엑스에서 에프 1을 뺀 값을 엑스 마이너스 1로 나눈 극한이 4가 되도록 하는 에이와 비의 값을 구하여라.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.green.shade900,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '③ 아래 수식 버튼 또는 템플릿 활용',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            // 수식 입력 도우미 버튼들
+            _buildMathInputHelper(context),
+            const SizedBox(height: 8),
             if (session.isAnalyzingConcepts)
               const Padding(
                 padding: EdgeInsets.only(top: 12),

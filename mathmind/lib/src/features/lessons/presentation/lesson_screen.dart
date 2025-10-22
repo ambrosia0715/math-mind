@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/services/ai_content_service.dart';
 import '../../../core/services/speech_service.dart';
+import '../../../core/services/math_expression_service.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../subscription/application/subscription_provider.dart';
 import '../application/lesson_session_provider.dart';
@@ -376,6 +378,10 @@ class _LessonScreenState extends State<LessonScreen> {
   String? _visualFocusHint;
   Future<VisualExplanationImage?>? _visualImageTask;
   VisualExplanationImage? _visualImage;
+
+  // Image picker and text recognition
+  final _imagePicker = ImagePicker();
+  bool _isRecognizingText = false;
 
   void _resetGeneratedContent(LessonSessionProvider session) {
     if (_isListening) {
@@ -1203,6 +1209,108 @@ class _LessonScreenState extends State<LessonScreen> {
     setState(_resetVisualState);
   }
 
+  /// Show dialog to choose camera or gallery
+  Future<void> _showImageSourceDialog() async {
+    final l10n = context.l10n;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('사진에서 문제 가져오기'),
+        content: const Text('카메라로 촬영하거나 갤러리에서 선택해 주세요.'),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _pickImageAndRecognizeText(ImageSource.camera);
+            },
+            icon: const Icon(Icons.camera_alt),
+            label: const Text('카메라'),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _pickImageAndRecognizeText(ImageSource.gallery);
+            },
+            icon: const Icon(Icons.photo_library),
+            label: const Text('갤러리'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Pick image from camera or gallery and recognize text
+  Future<void> _pickImageAndRecognizeText(ImageSource source) async {
+    final l10n = context.l10n;
+
+    try {
+      setState(() => _isRecognizingText = true);
+
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 80, // Reduce quality for faster processing
+      );
+
+      if (pickedFile == null) {
+        setState(() => _isRecognizingText = false);
+        return;
+      }
+
+      // Recognize text from the picked image
+      final mathService = MathExpressionService();
+      final recognizedText = await mathService.recognizeFromPath(
+        pickedFile.path,
+      );
+
+      if (!mounted) return;
+
+      if (recognizedText != null && recognizedText.trim().isNotEmpty) {
+        // Set the recognized text to the topic field
+        _topicController.text = recognizedText.trim();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('텍스트를 인식했어요: ${recognizedText.trim()}'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('이미지에서 텍스트를 찾을 수 없어요. 다른 이미지를 시도해 보세요.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+
+      // Clean up the math service
+      await mathService.dispose();
+    } catch (e) {
+      debugPrint('Image text recognition error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('이미지 처리 중 문제가 발생했어요. 다시 시도해 주세요.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRecognizingText = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _topicController.dispose();
@@ -1384,13 +1492,39 @@ class _LessonScreenState extends State<LessonScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _topicController,
-              decoration: InputDecoration(
-                labelText: l10n.lessonTopicLabel,
-                hintText: l10n.lessonTopicHint,
-              ),
-              onChanged: (value) => _handlePromptChanged(value, session),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _topicController,
+                    decoration: InputDecoration(
+                      labelText: l10n.lessonTopicLabel,
+                      hintText: l10n.lessonTopicHint,
+                    ),
+                    onChanged: (value) => _handlePromptChanged(value, session),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _isRecognizingText ? null : _showImageSourceDialog,
+                  icon: _isRecognizingText
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.camera_alt),
+                  tooltip: '사진에서 문제 가져오기',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer,
+                    foregroundColor: Theme.of(
+                      context,
+                    ).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ],
             ),
             if (session.isAnalyzingConcepts)
               const Padding(

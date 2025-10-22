@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -382,6 +384,7 @@ class _LessonScreenState extends State<LessonScreen> {
   // Image picker and text recognition
   final _imagePicker = ImagePicker();
   bool _isRecognizingText = false;
+  XFile? _selectedImage;
 
   void _resetGeneratedContent(LessonSessionProvider session) {
     if (_isListening) {
@@ -1209,6 +1212,97 @@ class _LessonScreenState extends State<LessonScreen> {
     setState(_resetVisualState);
   }
 
+  /// Show dialog with recognition result for user to confirm or edit
+  Future<void> _showRecognitionResultDialog(
+    String recognizedText,
+    XFile imageFile,
+  ) async {
+    final TextEditingController resultController = TextEditingController(
+      text: recognizedText,
+    );
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('인식 결과 확인'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image preview
+              Container(
+                width: double.infinity,
+                height: 200,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: FutureBuilder<Uint8List>(
+                    future: imageFile.readAsBytes(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        return Image.memory(
+                          snapshot.data!,
+                          fit: BoxFit.contain,
+                        );
+                      } else if (snapshot.hasError) {
+                        return const Center(child: Icon(Icons.error, size: 48));
+                      } else {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '인식된 텍스트를 확인하고 필요시 수정해 주세요.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: resultController,
+                decoration: const InputDecoration(
+                  labelText: '인식된 텍스트',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                autofocus: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(resultController.text),
+            child: const Text('사용하기'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.trim().isNotEmpty) {
+      _topicController.text = result.trim();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('주제가 설정되었습니다: ${result.trim()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+
+    resultController.dispose();
+  }
+
   /// Show dialog to choose camera or gallery
   Future<void> _showImageSourceDialog() async {
     final l10n = context.l10n;
@@ -1261,6 +1355,9 @@ class _LessonScreenState extends State<LessonScreen> {
         return;
       }
 
+      // Store the selected image for preview
+      _selectedImage = pickedFile;
+
       // Recognize text from the picked image
       final mathService = MathExpressionService();
       final recognizedText = await mathService.recognizeFromPath(
@@ -1270,17 +1367,8 @@ class _LessonScreenState extends State<LessonScreen> {
       if (!mounted) return;
 
       if (recognizedText != null && recognizedText.trim().isNotEmpty) {
-        // Set the recognized text to the topic field
-        _topicController.text = recognizedText.trim();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('텍스트를 인식했어요: ${recognizedText.trim()}'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+        // Show recognition result dialog for user confirmation/editing
+        await _showRecognitionResultDialog(recognizedText.trim(), pickedFile);
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

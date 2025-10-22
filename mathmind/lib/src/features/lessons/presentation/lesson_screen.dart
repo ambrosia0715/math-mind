@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1385,10 +1386,21 @@ class _LessonScreenState extends State<LessonScreen> {
     } catch (e) {
       debugPrint('Image text recognition error: $e');
       if (mounted) {
+        String errorMessage = '이미지 처리 중 문제가 발생했어요. 다시 시도해 주세요.';
+
+        // Provide specific message for web platform
+        if (e is UnsupportedError ||
+            e.toString().contains('MissingPluginException')) {
+          errorMessage =
+              '웹에서는 이미지 텍스트 인식 기능을 사용할 수 없어요. '
+              '모바일 앱을 사용해 주세요.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('이미지 처리 중 문제가 발생했어요. 다시 시도해 주세요.'),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: Text(errorMessage),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(label: '확인', onPressed: () {}),
           ),
         );
       }
@@ -1594,22 +1606,31 @@ class _LessonScreenState extends State<LessonScreen> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  onPressed: _isRecognizingText ? null : _showImageSourceDialog,
+                  onPressed: kIsWeb || _isRecognizingText
+                      ? null
+                      : _showImageSourceDialog,
                   icon: _isRecognizingText
                       ? const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.camera_alt),
-                  tooltip: '사진에서 문제 가져오기',
+                      : Icon(
+                          Icons.camera_alt,
+                          color: kIsWeb
+                              ? Theme.of(context).disabledColor
+                              : null,
+                        ),
+                  tooltip: kIsWeb
+                      ? '웹에서는 지원되지 않는 기능입니다 (모바일 전용)'
+                      : '사진에서 문제 가져오기',
                   style: IconButton.styleFrom(
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer,
-                    foregroundColor: Theme.of(
-                      context,
-                    ).colorScheme.onPrimaryContainer,
+                    backgroundColor: kIsWeb
+                        ? Theme.of(context).colorScheme.surfaceContainerHighest
+                        : Theme.of(context).colorScheme.primaryContainer,
+                    foregroundColor: kIsWeb
+                        ? Theme.of(context).disabledColor
+                        : Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
                 ),
               ],

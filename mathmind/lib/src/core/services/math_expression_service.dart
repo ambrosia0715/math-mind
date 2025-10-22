@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 /// Helper class to store text elements with their positions
@@ -12,11 +13,21 @@ class _TextElement {
 }
 
 class MathExpressionService {
-  MathExpressionService() : _recognizer = TextRecognizer();
+  MathExpressionService() : _recognizer = kIsWeb ? null : TextRecognizer();
 
-  final TextRecognizer _recognizer;
+  final TextRecognizer? _recognizer;
 
   Future<String?> recognizeFromPath(String path) async {
+    // Web platform doesn't support ML Kit text recognition
+    if (kIsWeb) {
+      return _recognizeFromPathWeb(path);
+    }
+
+    // Native platforms (Android, iOS)
+    if (_recognizer == null) {
+      throw Exception('Text recognizer not available');
+    }
+
     final inputImage = InputImage.fromFilePath(path);
     final RecognizedText recognized = await _recognizer.processImage(
       inputImage,
@@ -106,7 +117,17 @@ class MathExpressionService {
     return operators.contains(lastChar) || operators.contains(firstChar);
   }
 
+  /// Web-specific text recognition (placeholder implementation)
+  Future<String?> _recognizeFromPathWeb(String path) async {
+    // For web, we'll return a helpful message for now
+    // In a production app, you might want to integrate with Tesseract.js or similar
+    throw UnsupportedError(
+      'Text recognition from images is not supported on web platform. '
+      'Please use the mobile app for this feature.',
+    );
+  }
+
   Future<void> dispose() async {
-    await _recognizer.close();
+    await _recognizer?.close();
   }
 }
